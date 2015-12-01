@@ -1,0 +1,12 @@
+{
+	"name": "xim",
+	"version": "0.0.1",
+	"author":  "xiao lihao",
+
+	"dependencies": {
+		"mysql": "*",
+		"redis": "*",
+		"socket.io": "*",
+		"winston": "*"
+	}
+}
