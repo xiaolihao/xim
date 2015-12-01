@@ -17,7 +17,10 @@ var client_model = backbone.Model.extend({
 		'ip': '',
 
 		// userid: {nick_name:}
-		'friends': {}
+		'friends': {},
+
+		// store redis field
+		'payload': ''
 	},
 
 
@@ -27,6 +30,8 @@ var client_model = backbone.Model.extend({
 		// redis hash
 		var uid = this.get('user_id');
 		var v = settings.socket.host + ':' + settings.socket.port + ':' + process.pid;
+		
+		var self = this;
 		shared.redis_db_conn.hvals(uid, function(err, values){
 
 			if(err){
@@ -36,6 +41,7 @@ var client_model = backbone.Model.extend({
 
 			// first login
 			if(values.length==0){
+				self.set('payload', 'p-0');
 				shared.redis_db_conn.hset(uid, 'p-0', v);
 			}
 
@@ -45,7 +51,7 @@ var client_model = backbone.Model.extend({
 				// server not in redis
 				if(values.indexOf(v) == -1){
 					var field='p-'+values.length;
-
+					self.set('payload', field);
 					shared.redis_db_conn.hset(uid, field, v)
 				}
 				
@@ -61,7 +67,9 @@ var client_model = backbone.Model.extend({
 		var friends = this.get('friends');
 
 		shared.mysql_conn.getConnection(function(err,conn){
+
         conn.query('SELECT USERID_2 FROM XIM_FRIENDSHIP WHERE USERID_1 = ?', uid, function(err, rows, fields){
+          
           if(rows){
             _.each(rows, function(row) {
               
@@ -113,15 +121,24 @@ var client_model = backbone.Model.extend({
 
 	close: function(){
 		// delete online info in redis
-		// ... 
 		var uid = this.get('user_id');
-		var v = settings.socket.host + ':' + settings.socket.port + ':' + process.pid;
+		shared.redis_db_conn.hdel(uid, this.get('payload'));
 
-		shared.redis_db_conn.hexists() ;
+		// check if having other clients 
+		shared.redis_db_conn.hlen(uid, function(err, reply){
+			if(err){
+				shared.logger.info(err);
+				return;
+			}
 
+			// no other clients
+			if(reply == 0){
+				// notify friend offline info if no other client login
+				// ...
+			}
+		});
 
-		// notify friend offline info if no other client login
-		// ...
+		
 		this.set('socket', null);
       	this.trigger('close', this);
 	}

@@ -35,12 +35,4 @@ function init(){
 	// process sub message
 	shared.redis_ps_conn.on('message', function(channel, message){
 	});
-
-	shared.redis_db_conn.hlen("myhash",function (err, reply) {
-    if (err) {
-        return console.error("error response - " + err);
-    }
-
-    console.log("This is a hexists test -->    " + reply);
-	});
 }
