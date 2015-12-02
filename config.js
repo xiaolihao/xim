@@ -18,7 +18,7 @@ exports.mysql = {
   port: '3306',
   user: 'mysql',
   password: 'mysql',
-  databse: 'XIM',
+  database: 'XIM',
 
   connection_limit: 100,
   queue_limit: 100
@@ -29,9 +29,12 @@ exports.mysql = {
 exports.redis = {
 
   // pub/sub
-  pshost: '127.0.0.1',
-  psport: 6379,
+  pubhost: '127.0.0.1',
+  pubport: 6379,
 
+  subhost: '127.0.0.1',
+  subport: 6379,
+  
   // db
   dbhost: '127.0.0.1',
   dbport: 6379

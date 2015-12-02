@@ -1,26 +1,30 @@
 
 var backbone = require('backbone');
 var shared = require('./shared.js');
-var _ = require('lodash');
-
+var _ = require('underscore');
+var settings =require('./config.js');
+var server_model=null;
 
 // client model
-var client_model = backbone.Model.extend({
-	idAttribute: 'user_id',
-	
+var client_model = backbone.Model.extend({	
 	// status is in redis
-	defaults: {
-		'user_id': null,
-		
-		'socket': null,		// allow multi connection(same node)
-		'desc': ''
-		'ip': '',
 
-		// userid: {nick_name:}
-		'friends': {},
+	// Remember that in JavaScript, objects are passed by reference, 
+	// so if you include an object as a default value, it will be shared among all instances. 
+	// Instead, define defaults as a function.
+	defaults: function(){
+		return {
+			'user_id': null,
+			
+			'socket': null,		// allow multi connection(same node)
+			'desc': '',
+			'ip': '',
 
-		// store redis field
-		'payload': ''
+			// userid: on/off
+			'friends': {},
+
+			'payload': {}
+			}
 	},
 
 
@@ -41,8 +45,10 @@ var client_model = backbone.Model.extend({
 
 			// first login
 			if(values.length==0){
-				self.set('payload', 'p-0');
+				self.get('payload')['field'] = 'p-0';
 				shared.redis_db_conn.hset(uid, 'p-0', v);
+
+				shared.logger.info(uid+','+'p-0'+'->'+v);
 			}
 
 			// has logined
@@ -51,8 +57,9 @@ var client_model = backbone.Model.extend({
 				// server not in redis
 				if(values.indexOf(v) == -1){
 					var field='p-'+values.length;
-					self.set('payload', field);
+					self.get('payload')['field'] = field;
 					shared.redis_db_conn.hset(uid, field, v)
+					shared.logger.info(uid+','+field+'->'+v);
 				}
 				
 			}
@@ -64,65 +71,87 @@ var client_model = backbone.Model.extend({
 
 		// read friend list
 		var uid = this.get('user_id');
-		var friends = this.get('friends');
+		var self = this;
 
 		shared.mysql_conn.getConnection(function(err,conn){
-
-        conn.query('SELECT USERID_2 FROM XIM_FRIENDSHIP WHERE USERID_1 = ?', uid, function(err, rows, fields){
-          
-          if(rows){
-            _.each(rows, function(row) {
+        	conn.query('SELECT USERID_2 FROM XIM_FRIENDSHIP WHERE USERID_1 = ?', uid, function(err, rows, fields){
+          	
+          	if(rows){
+            	_.each(rows, function(row) {
               
-              	shared.redis_db_conn.hlen(row.USERID_2, function(err, reply){
-              		if(err){
-              			shared.logger.info(err);
-        				return;
-    				}
+              		shared.redis_db_conn.hlen(row.USERID_2+'', function(err, reply){
+              			if(err){
+              				shared.logger.info(err);
+        					return;
+    					}
 
-    				// has logined
-    				if(reply > 0){
-    					friends[row.USERID_2] = 'on';
+    					var _uid=row.USERID_2+'';
+    					// has logined
+    					if(reply > 0){
 
-    					// notify friend online info
-    					// ...
-    				}
-    				else{
-    					friends[row.USERID_2] = 'off';
-    				}
-				});
+    						self.get('friends')[row.USERID_2+''] = 'on';
+    						// notify friend online info
+    					
+    						var message = {
+    							action: 'state-notify',
+    							msg: {
+    								to_user_id: _uid,
+    								from_user_id: uid,
+    								state: 'on'
+    							}
+    						}
+    						server_model.emit_message(_uid, message);
 
-            });
-          }
-          conn.release();
+    					}
+    					else{
+    						self.get('friends')[row.USERID_2+''] = 'off';
+    					}
+
+					});
+
+            	});
+          	}
+        	conn.release();
         });
       });
 	},
 
 	initialize: function(){
-		write_redis_info();
-		read_friend_list();
 
 		var self=this;
 		var sock = this.get('socket');
 
+		console.log(sock);
       	sock.on('close', function(){
+      		shared.logger.info('[exit]'+uid);
         	self.close();
       	});
 
+		server_model.add_client(self);
+
+		this.write_redis_info();
+		this.read_friend_list();
 
 	},/*initialize*/
 
-	send_message: function (msg) {
+	write_message: function (message) {
       var socket = this.get('socket');
       if(socket){
-         socket.write(JSON.stringify(msg));
+         socket.emit('message',JSON.stringify(message));
+
+         // update friends state
+         if(message.action == 'state-notify')
+         	this.get('friends')[message.msg.to_user_id]=message.msg.state;
       }
     },
 
 	close: function(){
 		// delete online info in redis
 		var uid = this.get('user_id');
-		shared.redis_db_conn.hdel(uid, this.get('payload'));
+		var self = this;
+
+
+		shared.redis_db_conn.hdel(uid, this.get('payload')['field']);
 
 		// check if having other clients 
 		shared.redis_db_conn.hlen(uid, function(err, reply){
@@ -133,8 +162,25 @@ var client_model = backbone.Model.extend({
 
 			// no other clients
 			if(reply == 0){
-				// notify friend offline info if no other client login
-				// ...
+				// notify online friend offline info if no other client login
+				var f=self.get('friends');
+				_.each(f, function(v, k, f){
+					
+					// online
+					if(v == 'on'){
+						if(k == self.get('user_id')) return;
+
+						var message = {
+    						action: 'state-notify',
+    						msg: {
+    							to_user_id: k,
+    							from_user_id: uid,
+    							state: 'off'
+    						}
+    					}
+    					server_model.emit_message(k, message);
+					}
+				});
 			}
 		});
 
@@ -144,18 +190,94 @@ var client_model = backbone.Model.extend({
 	}
 });
 
+
 var client_collection = backbone.Collection.extend({
 	model: client_model,
 
 	add: function(client, options){
-    	
+		var self=this;
+    	self.listenTo(client, 'close', function(_client){
+    		self.stopListening(_client);
+    		self.remove(_client);
+    	});
+
+    	self.listenTo(client, 'change remove add', function(_client){
+    		shared.logger.info('[client event]'+'user_id:'+client.get('user_id')+','+
+    						'ip:'+client.get('ip')+','+
+    						'friends:'+JSON.stringify(client.get('friends'))+','+
+    						'payload:'+JSON.stringify(client.get('payload')));
+    	});
 
     	backbone.Collection.prototype.add.call(this, client, options);
+    	
   	}
 });
 
 
+var server_model = backbone.Model.extend({
+	default: {
+		'clients': null
+	},
 
+	initialize: function(){
+		this.set('clients', new client_collection());
+	},
+
+	add_client: function(client){
+		this.get('clients').add(client);
+	},
+
+	print: function(){
+		shared.logger.info(this.get('clients').toJSON());
+	},
+
+	emit_message: function(uid, message){
+		var clients = this.get('clients');
+		var cs = clients.where({user_id: uid});
+		var _message = message;
+
+		// not on same node
+		if(cs.length == 0){
+			shared.redis_db_conn.hvals(uid, function(err, values){
+
+				if(err){
+					shared.logger.info(err);
+					return;
+				}
+
+				_.each(values, function(v){
+					shared.redis_pub_conn.publish(v, JSON.stringify(_message));
+
+					shared.logger.info('[pub]'+JSON.stringify(_message));
+				});
+			});
+
+		}
+
+		// same node
+		// !!! if user also logined on other nodes, this strategy
+		// !!! not publish message to other nodes 
+		else{
+			_.each(cs, function(v){
+				v.write_message(_message);
+				shared.logger.info('[write]'+JSON.stringify(_message));
+
+			});
+		}
+	},
+
+	state_notify: function(message){
+
+	}
+
+});
+
+
+server_model = new server_model({});
+
+
+exports.client_model = client_model;
+exports.server_model = server_model;
 
 
 

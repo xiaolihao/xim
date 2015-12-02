@@ -6,7 +6,7 @@ var redis = require('redis');
 
 var logger;
 var mysql_conn;
-var redis_ps_conn;
+var redis_pub_conn, redis_sub_con;
 var redis_db_conn;
 
 
@@ -28,7 +28,7 @@ function init_mysql(){
   		port: settings.mysql.port,
   		user: settings.mysql.user,
   		password: settings.mysql.password,
-  		databse: settings.mysql.database,
+  		database: settings.mysql.database,
   		connectionLimit: settings.mysql.connection_limit,
   		queueLimit: settings.mysql.queue_limit
 	});
@@ -63,10 +63,16 @@ function init_mysql(){
 
 
 function init_redis(){
-	redis_ps_conn = redis.createClient(
+	redis_pub_conn = redis.createClient(
 		{
-			host:settings.redis.pshost, 
-			port:settings.redis.psport
+			host:settings.redis.pubhost, 
+			port:settings.redis.pubport
+		});
+
+	redis_sub_conn = redis.createClient(
+		{
+			host:settings.redis.subhost, 
+			port:settings.redis.subport
 		});
 
 	redis_db_conn = redis.createClient(
@@ -88,7 +94,8 @@ init();
 
 exports.logger = logger;
 exports.mysql_conn = mysql_conn;
-exports.redis_ps_conn = redis_ps_conn;
+exports.redis_pub_conn = redis_pub_conn;
+exports.redis_sub_conn = redis_sub_conn;
 exports.redis_db_conn = redis_db_conn;
 
 
