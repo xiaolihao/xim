@@ -165,13 +165,14 @@ var client_model = backbone.Model.extend({
 
         			if(rows){
             			_.each(rows, function(row) {
-            				
+
+            				var type=_.findKey(v.msg_type_idx, function(_v){return _v==row.MSG_TYPE;});
             				var message = {
             					action: 'message',
             					msg: {
             						to_user_id: row.TO_USERID,
             						from_user_id: row.FROM_USERID,
-            						message_type: v.msg_idx_type[row.MSG_TYPE],
+            						message_type: type,
             						message: row.MSG,
             						timestamp: row.CREATED_DATE
             					}
