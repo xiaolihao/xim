@@ -31,7 +31,19 @@
       }
       socket.emit('message', JSON.stringify(msg));
       $('form').submit(function(){
-        socket.emit('chat message', $('#m').val());
+
+        var msg={
+          action:'message',
+          msg:{
+            to_user_id: '2',
+            from_user_id: '1',
+            message_type: 'text',
+            message: $('#m').val(),
+            timestamp: new Date().toJSON().replace('T', ' ').substr(0, 19)
+          }
+        }
+        socket.emit('message', JSON.stringify(msg));
+
         $('#m').val('');
         return false;
       });

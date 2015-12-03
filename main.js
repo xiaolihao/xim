@@ -45,8 +45,22 @@ io.on('connection', function(socket){
 
 			break;
 
+			/** msg format
+			*	
+			*	{
+			*		to_user_id: 	,
+			*		from_user_id: 	,		
+			*		message_type: 	,	// text, image, file, voice
+			*		message: 		,
+			*		timestamp: 			
+			*		
+			*	}
+			*
+			*/
 			case 'message':
+				server_model.emit_message(d.msg.to_user_id, d, true);
 			break;
+			
 			case 'request':
 			break;
 

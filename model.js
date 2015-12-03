@@ -3,7 +3,10 @@ var backbone = require('backbone');
 var shared = require('./shared.js');
 var _ = require('underscore');
 var settings =require('./config.js');
+var v = require('./values.js');
+
 var server_model=null;
+
 
 // client model
 var client_model = backbone.Model.extend({	
@@ -16,7 +19,7 @@ var client_model = backbone.Model.extend({
 		return {
 			'user_id': null,
 			
-			'socket': null,		// allow multi connection(same node)
+			'socket': null,		// allow multi connection
 			'desc': '',
 			'ip': '',
 
@@ -63,19 +66,26 @@ var client_model = backbone.Model.extend({
 				}
 				
 			}
+
+			if(values.length == 0)
+				self.read_friend_list(true);
+			else
+				self.read_friend_list(false);
 		});
 
 	},
 
-	read_friend_list: function(){
+	read_friend_list: function(need_notify_friend){
 
 		// read friend list
 		var uid = this.get('user_id');
 		var self = this;
+		var b = need_notify_friend;
 
 		shared.mysql_conn.getConnection(function(err,conn){
         	conn.query('SELECT USERID_2 FROM XIM_FRIENDSHIP WHERE USERID_1 = ?', uid, function(err, rows, fields){
           	
+          	conn.release();
           	if(rows){
             	_.each(rows, function(row) {
               
@@ -100,7 +110,10 @@ var client_model = backbone.Model.extend({
     								state: 'on'
     							}
     						}
-    						server_model.emit_message(_uid, message);
+
+    						// only one instance login
+    						if(b)
+    							server_model.emit_message(_uid, message, false);
 
     					}
     					else{
@@ -111,9 +124,66 @@ var client_model = backbone.Model.extend({
 
             	});
           	}
-        	conn.release();
+        	
         });
       });
+	},
+
+	update_read_flag: function(ids){
+		shared.mysql_conn.getConnection(function(err,conn){
+			var sql='UPDATE XIM_OFFLINE_MSG SET ISREAD=1 WHERE ID IN('+ids+')';
+			conn.query(sql,
+        		function(err, rows, fields){
+        			conn.release();
+
+        			if(err){
+        				shared.logger.info(err);
+            		}
+        	});
+        });
+	},
+
+	read_offline_msg: function(){
+		var uid = this.get('user_id');
+		var self = this;
+
+		shared.mysql_conn.getConnection(function(err,conn){
+			conn.query('SELECT ID,TO_USERID,FROM_USERID,MSG_TYPE,MSG,DATE_FORMAT(CREATED_DATE,"%Y-%m-%d %H:%i:%s") As CREATED_DATE FROM XIM_OFFLINE_MSG WHERE TO_USERID=? AND ISREAD=0',
+				uid, 
+        		function(err, rows, fields){
+        			conn.release();
+
+        			if(err){
+        				shared.logger.info(err);
+        				return;
+        			}
+        			if(rows.length == 0) return;
+
+        			// batch update
+        			var ids=_.map(_.pluck(rows, 'ID'), function(v){return '\''+v+'\'';}).join(',');
+        			self.update_read_flag(ids);
+
+        			if(rows){
+            			_.each(rows, function(row) {
+            				
+            				var message = {
+            					action: 'message',
+            					msg: {
+            						to_user_id: row.TO_USERID,
+            						from_user_id: row.FROM_USERID,
+            						message_type: v.msg_idx_type[row.MSG_TYPE],
+            						message: row.MSG,
+            						timestamp: row.CREATED_DATE
+            					}
+            				};
+
+            				self.write_message(message);
+            			});
+            		}
+
+            		
+        	});
+        });
 	},
 
 	initialize: function(){
@@ -121,34 +191,46 @@ var client_model = backbone.Model.extend({
 		var self=this;
 		var sock = this.get('socket');
 
-		console.log(sock);
-      	sock.on('close', function(){
-      		shared.logger.info('[exit]'+uid);
+		// 'close' event for sockjs
+      	sock.on('disconnect', function(){
+      		shared.logger.info('[exit]'+self.get('user_id'));
         	self.close();
       	});
 
 		server_model.add_client(self);
 
 		this.write_redis_info();
-		this.read_friend_list();
+
+		this.read_offline_msg();
 
 	},/*initialize*/
 
 	write_message: function (message) {
-      var socket = this.get('socket');
-      if(socket){
-         socket.emit('message',JSON.stringify(message));
+		var self = this;
+		var socket = this.get('socket');
+	    if(socket){
+	    	socket.emit('message',JSON.stringify(message));
 
-         // update friends state
-         if(message.action == 'state-notify')
-         	this.get('friends')[message.msg.to_user_id]=message.msg.state;
-      }
+	         // update friends state
+	         if(message.action == 'state-notify'){
+	         	this.get('friends')[message.msg.from_user_id]=message.msg.state;
+	         	this.trigger('change', self);
+	         }
+	     }
     },
 
 	close: function(){
 		// delete online info in redis
 		var uid = this.get('user_id');
 		var self = this;
+
+		this.set('socket', null);
+      	this.trigger('close', this);
+
+		// check if other clients login in same node
+		var cs = server_model.get('clients').where({user_id: uid});
+		if(cs.length != 0)
+			return;
 
 
 		shared.redis_db_conn.hdel(uid, this.get('payload')['field']);
@@ -178,15 +260,12 @@ var client_model = backbone.Model.extend({
     							state: 'off'
     						}
     					}
-    					server_model.emit_message(k, message);
+    					server_model.emit_message(k, message, false);
 					}
 				});
 			}
 		});
 
-		
-		this.set('socket', null);
-      	this.trigger('close', this);
 	}
 });
 
@@ -199,10 +278,24 @@ var client_collection = backbone.Collection.extend({
     	self.listenTo(client, 'close', function(_client){
     		self.stopListening(_client);
     		self.remove(_client);
+
+    		shared.logger.info('[client remove]'+'user_id:'+client.get('user_id')+','+
+    						'ip:'+client.get('ip')+','+
+    						'friends:'+JSON.stringify(client.get('friends'))+','+
+    						'payload:'+JSON.stringify(client.get('payload')));
+
     	});
 
-    	self.listenTo(client, 'change remove add', function(_client){
-    		shared.logger.info('[client event]'+'user_id:'+client.get('user_id')+','+
+
+    	self.listenTo(client, 'add', function(_client){
+    		shared.logger.info('[client add]'+'user_id:'+client.get('user_id')+','+
+    						'ip:'+client.get('ip')+','+
+    						'friends:'+JSON.stringify(client.get('friends'))+','+
+    						'payload:'+JSON.stringify(client.get('payload')));
+    	});
+
+    	self.listenTo(client, 'change', function(_client){
+    		shared.logger.info('[client change]'+'user_id:'+client.get('user_id')+','+
     						'ip:'+client.get('ip')+','+
     						'friends:'+JSON.stringify(client.get('friends'))+','+
     						'payload:'+JSON.stringify(client.get('payload')));
@@ -231,7 +324,7 @@ var server_model = backbone.Model.extend({
 		shared.logger.info(this.get('clients').toJSON());
 	},
 
-	emit_message: function(uid, message){
+	emit_message: function(uid, message, cache){
 		var clients = this.get('clients');
 		var cs = clients.where({user_id: uid});
 		var _message = message;
@@ -245,11 +338,37 @@ var server_model = backbone.Model.extend({
 					return;
 				}
 
-				_.each(values, function(v){
-					shared.redis_pub_conn.publish(v, JSON.stringify(_message));
+				// offline
+				if(values.length == 0 && cache){
+					// write to db
+					 
+					shared.mysql_conn.getConnection(function(err,conn){
+        				conn.query('INSERT INTO XIM_OFFLINE_MSG SET ?', 
+        					{
+        						'TO_USERID': uid, 
+        						'FROM_USERID': message.msg.from_user_id,
+        						'MSG_TYPE': v.msg_type_idx[message.msg.message_type],
+        						'CREATED_DATE': message.msg.timestamp,
+        						'MSG': message.msg.message
+        					}, 
+        					function(err, rows, fields){
+        						if(err)
+        							shared.logger.info(err);
 
-					shared.logger.info('[pub]'+JSON.stringify(_message));
-				});
+        						conn.release();
+        					});
+					});
+  
+
+				}
+				else{
+					_.each(values, function(v){
+						shared.redis_pub_conn.publish(v, JSON.stringify(_message));
+
+						shared.logger.info('[pub]'+JSON.stringify(_message));
+					});
+				}
+				
 			});
 
 		}
@@ -264,10 +383,6 @@ var server_model = backbone.Model.extend({
 
 			});
 		}
-	},
-
-	state_notify: function(message){
-
 	}
 
 });
