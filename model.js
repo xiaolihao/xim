@@ -325,6 +325,18 @@ var server_model = backbone.Model.extend({
 		shared.logger.info(this.get('clients').toJSON());
 	},
 
+	// write directly to online socket
+	write_message: function(uid, message){
+		var clients = this.get('clients');
+		var cs = clients.where({user_id: uid});
+
+		_.each(cs, function(v){
+			v.write_message(message);
+			shared.logger.info('[write]'+JSON.stringify(message));
+
+		});
+	},
+
 	emit_message: function(uid, message, cache){
 		var clients = this.get('clients');
 		var cs = clients.where({user_id: uid});
@@ -359,14 +371,15 @@ var server_model = backbone.Model.extend({
         						conn.release();
         					});
 					});
-  
+  				
+					shared.logger.info('[cache message]'+JSON.stringify(_message));
 
 				}
 				else{
 					_.each(values, function(v){
 						shared.redis_pub_conn.publish(v, JSON.stringify(_message));
 
-						shared.logger.info('[pub]'+JSON.stringify(_message));
+						shared.logger.info('[send:pub]channel:'+v+',message:'+JSON.stringify(_message));
 					});
 				}
 				

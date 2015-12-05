@@ -1,8 +1,12 @@
 var shared = require('./shared.js');
 var settings = require('./config.js');
-var io = require('socket.io')(settings.socket.port);
+var argv = require('optimist').argv;
 var _ = require('underscore');
 var model = require('./model.js');
+
+settings.socket.port=argv.port||settings.socket.port;
+
+var io = require('socket.io')(settings.socket.port);
 
 init();
 
@@ -80,5 +84,11 @@ function init(){
 
 	// process sub message
 	shared.redis_sub_conn.on('message', function(channel, message){
+		shared.logger.info('[recv:sub]'+'channel:'+channel+',message:'+message);
+
+		var d = JSON.parse(message);
+		server_model.write_message(d.msg.to_user_id, d);
 	});
 }
+
+
