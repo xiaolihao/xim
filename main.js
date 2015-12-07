@@ -55,12 +55,14 @@ io.on('connection', function(socket){
 			*		to_user_id: 	,
 			*		from_user_id: 	,		
 			*		message_type: 	,	// text, image, file, voice
-			*		message: 		,
+			*		message: 		,   
 			*		timestamp: 			
 			*		
 			*	}
 			*
 			*/
+			// message: {url:, file_type:, file_name:, file_length:}
+			// timestamp for file write completely in file system
 			case 'message':
 				server_model.emit_message(d.msg.to_user_id, d, true);
 			break;

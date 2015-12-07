@@ -11,6 +11,13 @@ exports.socket = {
   port: 9019
 };
 
+exports.mongodb = {
+  database: 'xim',
+  host: '127.0.0.1',
+  port: 27017
+}
+
+
 
 // mysql
 exports.mysql = {
