@@ -4,6 +4,7 @@ var mongo = require('mongodb');
 var gridfs = require('gridfs-stream');
 var uuid = require('node-uuid');
 var mime = require('mime-types');
+var utf8 = require('utf8');
 var settings = require('../config.js');
 
 
@@ -41,8 +42,9 @@ function file_download(req, res, next){
 		console.log('[download]'+file._id+','+file.filename);
 
 		// open in browser use 'inline' take place attachment
-		res.setHeader('Content-disposition', 'attachment; filename=' + file.filename);
+		res.setHeader('Content-disposition', 'attachment; filename=' + utf8.encode(file.filename));
   		res.setHeader('Content-type', file.contentType);
+
 		rs.pipe(res);
   	});
 	
