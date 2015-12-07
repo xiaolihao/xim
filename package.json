@@ -8,6 +8,13 @@
 		"redis": "*",
 		"socket.io": "*",
 		"winston": "*",
-		"underscore": "*"
+		"underscore": "*",
+		"restify": "*",
+		"mongodb": "*",
+		"gridfs-stream": "*",
+		"node-uuid": "*",
+		"mime-types": "*",
+		"backbone": "*",
+		"optimist": "*"
 	}
 }

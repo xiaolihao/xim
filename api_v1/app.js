@@ -39,6 +39,8 @@ function file_download(req, res, next){
 		});
 
 		console.log('[download]'+file._id+','+file.filename);
+
+		// open in browser use 'inline' take place attachment
 		res.setHeader('Content-disposition', 'attachment; filename=' + file.filename);
   		res.setHeader('Content-type', file.contentType);
 		rs.pipe(res);
@@ -50,10 +52,17 @@ function file_download(req, res, next){
 
 function file_upload(req, res, next){
 
-	var path = req.files.file.path;
+	var namestr = null;
+	for(first in req.files){
+		namestr=first;
+		break;
+	} 	
+
+	var _file = req.files[namestr];
+	var path = _file.path;
 	
-	var ct=mime.lookup(req.files.file.name);
-	var ws = gfs.createWriteStream({filename:req.files.file.name, content_type: ct||'binary/octet-stream'});
+	var ct=mime.lookup(_file.name)||'binary/octet-stream';
+	var ws = gfs.createWriteStream({filename:_file.name, content_type: ct});
 	fs.createReadStream(path).pipe(ws);
 
 	ws.on('error', function(err){
@@ -62,18 +71,26 @@ function file_upload(req, res, next){
 	});
 
 	ws.on('close', function(file){
-		console.log('[upload]'+file._id+','+req.files.file.name);
+		console.log('[upload]'+file._id+','+_file.name);
 		var url='http://'+settings.api.host+':'+settings.api.port+'/api/v1/download/'+file._id;
-		res.send(url);
+
+		// send message to socket.io when complete api calling 
+		res.send({file_type: ct, 
+					url: url, 
+					file_name: file.filename, 
+					file_length: file.length,
+					timestamp: file.uploadDate.toJSON().replace('T', ' ').substr(0, 19)});
 	});
 };
 
 
 /////////////////////////////// server ///////////////////////////////
 var server = restify.createServer({name: settings.api.name});
+server.use(restify.CORS());
 server.use(restify.bodyParser());
 server.post('/api/v1/upload', file_upload);
 server.get('/api/v1/download/:id', file_download);
+
 
 server.listen(settings.api.port, function() {
   console.log('%s listening at %s', server.name, server.url);

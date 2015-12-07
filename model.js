@@ -1,4 +1,3 @@
-
 var backbone = require('backbone');
 var shared = require('./shared.js');
 var _ = require('underscore');
@@ -12,7 +11,7 @@ var server_model=null;
 var client_model = backbone.Model.extend({	
 	// status is in redis
 
-	// Remember that in JavaScript, objects are passed by reference, 
+	// remember that in JavaScript, objects are passed by reference, 
 	// so if you include an object as a default value, it will be shared among all instances. 
 	// Instead, define defaults as a function.
 	defaults: function(){
@@ -25,12 +24,9 @@ var client_model = backbone.Model.extend({
 
 			// userid: on/off
 			'friends': {},
-
 			'payload': {}
 			}
 	},
-
-
 
 	write_redis_info: function(){
 		// write logininfo to redis
@@ -362,7 +358,7 @@ var server_model = backbone.Model.extend({
         						'FROM_USERID': message.msg.from_user_id,
         						'MSG_TYPE': v.msg_type_idx[message.msg.message_type],
         						'CREATED_DATE': message.msg.timestamp,
-        						'MSG': message.msg.message
+        						'MSG': JSON.stringify(message.msg.message)
         					}, 
         					function(err, rows, fields){
         						if(err)
