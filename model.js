@@ -2,7 +2,7 @@ var backbone = require('backbone');
 var shared = require('./shared.js');
 var _ = require('underscore');
 var settings =require('./config.js');
-var v = require('./values.js');
+var async = require('async');
 
 var server_model=null;
 
@@ -144,7 +144,7 @@ var client_model = backbone.Model.extend({
 		var self = this;
 
 		shared.mysql_conn.getConnection(function(err,conn){
-			conn.query('SELECT ID,TO_USERID,FROM_USERID,MSG_TYPE,MSG,DATE_FORMAT(CREATED_DATE,"%Y-%m-%d %H:%i:%s") As CREATED_DATE FROM XIM_OFFLINE_MSG WHERE TO_USERID=? AND ISREAD=0',
+			conn.query('SELECT ID,MSG FROM XIM_OFFLINE_MSG WHERE TO_USERID=? AND ISREAD=0',
 				uid, 
         		function(err, rows, fields){
         			conn.release();
@@ -161,19 +161,7 @@ var client_model = backbone.Model.extend({
 
         			if(rows){
             			_.each(rows, function(row) {
-
-            				var type=_.findKey(v.msg_type_idx, function(_v){return _v==row.MSG_TYPE;});
-            				var message = {
-            					action: 'message',
-            					msg: {
-            						to_user_id: row.TO_USERID,
-            						from_user_id: row.FROM_USERID,
-            						message_type: type,
-            						message: row.MSG,
-            						timestamp: row.CREATED_DATE
-            					}
-            				};
-
+            				var message=JSON.parse(row.MSG);
             				self.write_message(message);
             			});
             		}
@@ -355,10 +343,9 @@ var server_model = backbone.Model.extend({
         				conn.query('INSERT INTO XIM_OFFLINE_MSG SET ?', 
         					{
         						'TO_USERID': uid, 
-        						'FROM_USERID': message.msg.from_user_id,
-        						'MSG_TYPE': v.msg_type_idx[message.msg.message_type],
+        						'FROM_USERID': message.msg.from_user_id||0,
         						'CREATED_DATE': message.msg.timestamp,
-        						'MSG': JSON.stringify(message.msg.message)
+        						'MSG': JSON.stringify(message)
         					}, 
         					function(err, rows, fields){
         						if(err)
@@ -392,6 +379,59 @@ var server_model = backbone.Model.extend({
 				shared.logger.info('[write]'+JSON.stringify(_message));
 
 			});
+		}
+	},
+
+	process_operation: function(message){
+		switch(message.msg.operation){
+			case 'friend-add-request':
+				shared.mysql_conn.getConnection(function(err,conn){
+					conn.query('SELECT ID FROM XIM_FRIENDSHIP WHERE USERID_1=? AND USERID_2=?', 
+					[message.msg.user_id, message.msg.message.target_user_id], function(err,rows,fields){
+
+						conn.release();
+						if(err){
+							shared.logger.info(err);
+							return;
+						}
+						if(rows.length > 0){
+
+							var _message = {
+								action: 'message',
+								msg: {
+									to_user_id: message.msg.user_id,
+	    							from_user_id: '0',				// system
+	    							message_type: 'system',
+									message: message.msg.message.target_user_id+' is already your friend',
+									timestamp: new Date().toJSON().replace('T', ' ').substr(0, 19)
+								}
+							}
+
+							server_model.emit_message(message.msg.user_id, _message, true);
+						}
+						else{
+							server_model.emit_message(message.msg.message.target_user_id, message, true);
+						}
+					});
+				});
+			break;
+			
+			case 'friend-add-reject':
+				// send reject message back to request user
+
+			break;
+			
+			case 'friend-add-agree':
+				// write db
+
+				// send success message to both user
+			break;
+			
+			case 'friend-delete':
+				// write db
+
+				// send success message to both user 
+			break;
 		}
 	}
 

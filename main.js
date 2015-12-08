@@ -19,7 +19,7 @@ io.on('connection', function(socket){
 		/** message format
 		*	
 		*	{
-		*		action: 	, 	// init, state-notify, message, requst	
+		*		action: 	, 	// init, state-notify, message, operation
 		*		msg: {}
 		*		
 		*	}
@@ -54,7 +54,7 @@ io.on('connection', function(socket){
 			*	{
 			*		to_user_id: 	,
 			*		from_user_id: 	,		
-			*		message_type: 	,	// text, image, file, voice
+			*		message_type: 	,	// text, image, file, voice, system
 			*		message: 		,   
 			*		timestamp: 			
 			*		
@@ -67,7 +67,18 @@ io.on('connection', function(socket){
 				server_model.emit_message(d.msg.to_user_id, d, true);
 			break;
 			
-			case 'request':
+			/** msg format
+			*	
+			*	{
+			*		user_id: 		,
+			*		operation: 		,	// friend-add-request, friend-add-reject, friend-add-agree, friend-delete
+			*		message: 		,	// {target_user_id:, attach_message:}   
+			*		timestamp: 			
+			*	}
+			*
+			*/
+			case 'operation':
+				server_model.process_operation(d);
 			break;
 
 		}

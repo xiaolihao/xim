@@ -1,7 +1,7 @@
 <!doctype html>
 <head>
-<script src="http://ajax.googleapis.com/ajax/libs/jquery/1.7/jquery.js"></script>
-<script src="http://malsup.github.com/jquery.form.js"></script>
+<script src="jquery.js"></script>
+<script src="jquery.form.js"></script>
 <style>
 form { display: block; margin: 20px auto; background: #eee; border-radius: 10px; padding: 15px }
 #progress { position:relative; width:400px; border: 1px solid #ddd; padding: 1px; border-radius: 3px; }
@@ -11,7 +11,7 @@ form { display: block; margin: 20px auto; background: #eee; border-radius: 10px;
 </head>
 <body>
 <h1>Ajax File Upload Demo</h1>
-<script src="https://cdn.socket.io/socket.io-1.2.0.js"></script>
+<script src="socket.io-client.js"></script>
 
 
 <form id="myForm" action="http://127.0.0.1:9018/api/v1/upload" method="post" enctype="multipart/form-data">
@@ -100,6 +100,8 @@ $(document).ready(function()
                 message_type: 'file',
                 message: {
                     file_type:_msg.file_type,
+                    file_length: _msg.file_length,
+                    file_name: _msg.filename,
                     url:_msg.url
                 },
                 timestamp:_msg.timestamp
