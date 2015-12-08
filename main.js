@@ -19,7 +19,7 @@ io.on('connection', function(socket){
 		/** message format
 		*	
 		*	{
-		*		action: 	, 	// init, state-notify, message, operation
+		*		action: 	, 	// init, state-notify, operation-notify, message, operation
 		*		msg: {}
 		*		
 		*	}

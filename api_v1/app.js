@@ -23,6 +23,20 @@ db.open(function(err){
 });
 
 
+function register(req, res, next){
+
+}
+
+
+function login(req, res, next){
+
+}
+
+
+function load_friend(req, res, next){
+
+}
+
 function file_download(req, res, next){
 	
 	gfs.findOne({ _id: req.params.id}, function(err, file){
@@ -93,6 +107,9 @@ server.use(restify.bodyParser());
 server.post('/api/v1/upload', file_upload);
 server.get('/api/v1/download/:id', file_download);
 
+server.post('/aip/v1/register', register);
+server.post('/api/v1/login', login);
+server.post('/api/v1/friends', load_friend);
 
 server.listen(settings.api.port, function() {
   console.log('%s listening at %s', server.name, server.url);

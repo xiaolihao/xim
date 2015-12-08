@@ -11,7 +11,7 @@ var server_model=null;
 var client_model = backbone.Model.extend({	
 	// status is in redis
 
-	// remember that in JavaScript, objects are passed by reference, 
+	// remember that in javaScript, objects are passed by reference, 
 	// so if you include an object as a default value, it will be shared among all instances. 
 	// Instead, define defaults as a function.
 	defaults: function(){
@@ -384,53 +384,111 @@ var server_model = backbone.Model.extend({
 
 	process_operation: function(message){
 		switch(message.msg.operation){
+
 			case 'friend-add-request':
-				shared.mysql_conn.getConnection(function(err,conn){
-					conn.query('SELECT ID FROM XIM_FRIENDSHIP WHERE USERID_1=? AND USERID_2=?', 
-					[message.msg.user_id, message.msg.message.target_user_id], function(err,rows,fields){
-
-						conn.release();
-						if(err){
-							shared.logger.info(err);
-							return;
-						}
-						if(rows.length > 0){
-
-							var _message = {
-								action: 'message',
-								msg: {
-									to_user_id: message.msg.user_id,
-	    							from_user_id: '0',				// system
-	    							message_type: 'system',
-									message: message.msg.message.target_user_id+' is already your friend',
-									timestamp: new Date().toJSON().replace('T', ' ').substr(0, 19)
-								}
-							}
-
-							server_model.emit_message(message.msg.user_id, _message, true);
-						}
-						else{
-							server_model.emit_message(message.msg.message.target_user_id, message, true);
-						}
-					});
-				});
+				server_model.emit_message(message.msg.message.target_user_id, message, true);
 			break;
+			
 			
 			case 'friend-add-reject':
 				// send reject message back to request user
-
+				// target_user_id is user sending add-request
+				server_model.emit_message(message.msg.message.target_user_id, message, true);
 			break;
 			
 			case 'friend-add-agree':
-				// write db
+				async.waterfall([
+						// check if being friend already
+						function(callback){
+							shared.mysql_conn.getConnection(function(err,conn){
+        						conn.query('SELECT ID FROM XIM_FRIENDSHIP WHERE USERID_1=? AND USERID_2=?', 
+        						[message.msg.user_id, message.msg.message.target_user_id], function(err,rows,fields){
 
+        						if(err){
+        							shared.logger.info(err);
+        							conn.release();
+        							callback(-1);
+        							return;
+        						}
+        						if(rows.length > 0){
+        							conn.release();
+        							callback(1);
+        						}
+        						else
+        							callback(null, conn);
+        						});
+          					});
+						},
+
+						function(conn, callback){
+							var _values='(\''+message.msg.user_id+'\',\''+message.msg.message.target_user_id+'\')'+','+
+										'(\''+message.msg.message.target_user_id+'\',\''+message.msg.user_id+'\')';
+							conn.query('INSERT INTO XIM_FRIENDSHIP(USERID_1,USERID_2) VALUES'+_values, function(err, rows, fields){
+								conn.release();
+								if(err){
+        							shared.logger.info(err);
+        							callback(-1);
+        							return;
+        						}
+
+        						callback(1)
+							});
+						}
+
+					], 
+
+					function(err, results){
+						if(err==1){
+							var _message = {
+        								action: 'operation-notify',
+        								msg: {
+        									to_user_id: message.msg.message.target_user_id,
+                							from_user_id: message.msg.user_id,
+                							message_type: 'friend-add',
+        								}
+        							}
+
+        					server_model.emit_message(message.msg.message.target_user_id, _message, true);
+        						
+        					_message.msg.to_user_id=message.msg.user_id;
+        					_message.msg.from_user_id=message.msg.message.target_user_id;
+        					server_model.write_message(message.msg.user_id, _message);
+						}
+				});
 				// send success message to both user
 			break;
 			
 			case 'friend-delete':
 				// write db
+				var id1=message.msg.user_id;
+				var id2=message.msg.message.target_user_id;
+				shared.mysql_conn.getConnection(function(err,conn){
+					conn.query('DELETE FROM XIM_FRIENDSHIP WHERE (USERID_1=? AND USERID_2=?) OR (USERID_1=? AND USERID_2=?)', 
+					[id1, id2, id2, id1], function(err,rows,fields){
 
-				// send success message to both user 
+					conn.release();
+					if(err){
+						shared.logger.info(err);
+						return;
+					}
+					
+					var _message = {
+        								action: 'operation-notify',
+        								msg: {
+        									to_user_id: message.msg.message.target_user_id,
+                							from_user_id: message.msg.user_id,
+                							message_type: 'friend-delete',
+        								}
+        							}
+
+        			server_model.emit_message(message.msg.message.target_user_id, _message, true);
+        						
+        			_message.msg.to_user_id=message.msg.user_id;
+        			_message.msg.from_user_id=message.msg.message.target_user_id;
+        			server_model.write_message(message.msg.user_id, _message);
+
+					});
+				});
 			break;
 		}
 	}

@@ -48,12 +48,12 @@ $(document).ready(function()
       }
     
     socket.emit('message', JSON.stringify(msg));
-
+    
     var _msg={
         action:'operation',
         msg:{
           user_id:'2',
-          operation: 'friend-add-request',
+          operation: 'friend-delete',
           message: {
             target_user_id: '1',
             attach_message: 'this is 1'
