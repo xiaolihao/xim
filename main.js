@@ -43,7 +43,7 @@ io.on('connection', function(socket){
 				var client_ip = socket.request.connection.remoteAddress;
 				new model.client_model({
 					'socket': socket,
-					'user_id': d.msg.user_id,
+					'user_id': d.msg.user_id+'',
 					'ip': client_ip
 				});
 

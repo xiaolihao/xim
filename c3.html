@@ -13,13 +13,11 @@ form { display: block; margin: 20px auto; background: #eee; border-radius: 10px;
 .friend_list ul li.hover { background: #ebeef3; }
 .friend_list ul li.choosed { background: #ebeef3; }
 .friend_list ul li a { }
-
 body {
     background-size:     cover;                      /* <------ */
     background-repeat:   no-repeat;
     background-position: center center;              /* optional, center the image */
 }
-
 </style>
 </head>
 <body>
@@ -72,7 +70,7 @@ $(document).ready(function(){
     $.ajax( {  
         url:'http://127.0.0.1:9018/api/v1/login',  
         data:{  
-             email : 'l.h_xiao@163.com',  
+             email : 'xiao@163.com',  
              password: '123456'  
         },  
         type:'post',  
@@ -122,6 +120,7 @@ $(document).ready(function(){
                 socket.emit('message', JSON.stringify(msg));
                 $('#m').val('');
             });
+
 
             var options = { 
                 beforeSend: function() 
@@ -185,95 +184,6 @@ $(document).ready(function(){
           console.log(err); 
         }  
     });
-/*
-        $(".friend_list li").mouseover(function(){$(this).addClass("hover").siblings().removeClass("hover")}).mouseout(function(){$(this).removeClass("hover").siblings().removeClass("hover")});
-
-        $(".friend_list li").dblclick(function(){
-            $(this).addClass("choosed").siblings().removeClass("choosed");
-        });
-
-    var socket = io('http://localhost:9019');
-    var msg={
-        action:'init',
-        msg:{
-          user_id:'1'
-        }
-      }
-    
-    socket.emit('message', JSON.stringify(msg));
-
-    socket.on('message', function(msg){
-        console.log(msg);
-    });
-
-    $('#btn').click(function(){
-
-        var msg={
-          action:'message',
-          msg:{
-            to_user_id: '2',
-            from_user_id: '1',
-            message_type: 'text',
-            message: $('#m').val(),
-            timestamp: new Date().toJSON().replace('T', ' ').substr(0, 19)
-          }
-        }
-        socket.emit('message', JSON.stringify(msg));
-        $('#m').val('');
-        
-    });
-
-	var options = { 
-        beforeSend: function() 
-        {
-        	$("#progress").show();
-        	$("#bar").width('0%');        	
-    		$("#percent").html("0%");
-        },
-        uploadProgress: function(event, position, total, percentComplete) 
-        {
-        	$("#bar").width(percentComplete+'%');
-        	$("#percent").html(percentComplete+'%');
-
-        
-        },
-        success: function() 
-        {
-            $("#bar").width('100%');
-        	$("#percent").html('100%');
-
-        },
-    	complete: function(response) 
-    	{
-            //console.log(response);
-
-            var _msg=JSON.parse(response.responseText);
-            var msg={
-              action:'message',
-              msg:{
-                to_user_id: '2',
-                from_user_id: '1',
-                message_type: 'file',
-                message: {
-                    file_type:_msg.file_type,
-                    file_length: _msg.file_length,
-                    file_name: _msg.filename,
-                    url:_msg.url
-                },
-                timestamp:_msg.timestamp
-              }
-            }
-            socket.emit('message', JSON.stringify(msg));
-            //console.log(JSON.stringify(msg));
-    	},
-    	error: function()
-    	{
-            $("<font color='red'> ERROR: unable to upload files</font>").appendTo('#messages');
-    	}
-     
-}; 
-
-    $("#myForm").ajaxForm(options);*/
 
 });
 
