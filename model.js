@@ -176,8 +176,8 @@ var client_model = backbone.Model.extend({
 		var self=this;
 		var sock = this.get('socket');
 
-		// 'close' event for sockjs
-      	sock.on('disconnect', function(){
+		// 'disconnect' event for socket.io
+      	sock.on('close', function(){
       		shared.logger.info('[exit]'+self.get('user_id'));
         	self.close();
       	});
@@ -194,7 +194,7 @@ var client_model = backbone.Model.extend({
 		var self = this;
 		var socket = this.get('socket');
 	    if(socket){
-	    	socket.emit('message',JSON.stringify(message));
+	    	socket.write(JSON.stringify(message));
 
 	         // update friends state
 	         if(message.action == 'state-notify'){
