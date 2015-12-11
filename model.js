@@ -111,6 +111,15 @@ var client_model = backbone.Model.extend({
     						if(b)
     							server_model.emit_message(_uid, message, false);
 
+    						//
+    						self.write_message({
+    									action: 'state-notify',
+    									msg: {
+    										to_user_id: uid,
+    										from_user_id: _uid,
+    										state: 'on'
+    									}
+    						});
     					}
     					else{
     						self.get('friends')[row.USERID_2+''] = 'off';
@@ -195,12 +204,6 @@ var client_model = backbone.Model.extend({
 		var socket = this.get('socket');
 	    if(socket){
 	    	socket.emit('message',JSON.stringify(message));
-
-	         // update friends state
-	         if(message.action == 'state-notify'){
-	         	this.get('friends')[message.msg.from_user_id]=message.msg.state;
-	         	this.trigger('change', self);
-	         }
 	     }
     },
 
@@ -245,6 +248,8 @@ var client_model = backbone.Model.extend({
     							state: 'off'
     						}
     					}
+
+
     					server_model.emit_message(k, message, false);
 					}
 				});
