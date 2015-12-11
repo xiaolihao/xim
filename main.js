@@ -10,11 +10,11 @@ var sockjs = require('sockjs');
 
 settings.socket.port=argv.port||settings.socket.port;
 
-//var io = require('socket.io')(settings.socket.port);
+// var io = require('socket.io')(settings.socket.port);
+// websocket:  false
 var io = sockjs.createServer({
 	sockjs_url: 'http://cdn.jsdelivr.net/sockjs/1.0.1/sockjs.min.js',
-	jsessionid: true,
-	websocket:  false
+	jsessionid: true
 });
 
 var server = http.createServer(function handler (req, res) {
