@@ -130,7 +130,7 @@ function update_login(user_id, req){
 
 function load_friend(req, res, next){
 	mysql_conn.getConnection(function(err,conn){
-		conn.query('SELECT A.ID,A.NICK_NAME,DATE_FORMAT(A.REGISTER_DATE, "%Y-%m-%d %H:%i:%s") AS REGISTER_DATE,DATE_FORMAT(A.LASTLOGIN_DATE, "%Y-%m-%d %H:%i:%s") AS LASTLOGIN_DATE ,INET_NTOA(A.LASTLOGIN_IP),A.EMAIL FROM XIM_USER AS A INNER JOIN (SELECT USERID_2 AS ID FROM XIM_FRIENDSHIP WHERE USERID_1=?) AS B ON A.ID=B.ID',
+		conn.query('SELECT A.ID,A.NICK_NAME,DATE_FORMAT(A.REGISTER_DATE, "%Y-%m-%d %H:%i:%s") AS REGISTER_DATE,DATE_FORMAT(A.LASTLOGIN_DATE, "%Y-%m-%d %H:%i:%s") AS LASTLOGIN_DATE ,INET_NTOA(A.LASTLOGIN_IP) AS LASTLOGIN_IP,A.EMAIL FROM XIM_USER AS A INNER JOIN (SELECT USERID_2 AS ID FROM XIM_FRIENDSHIP WHERE USERID_1=?) AS B ON A.ID=B.ID',
 			req.params.user_id, function(err,rows,fields){
 			conn.release();
 			if(err)

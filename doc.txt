@@ -5,9 +5,9 @@
 {
     action: 'state-notify',
     msg: {
-    to_user_id: _uid,	 	//你的id
-    from_user_id: uid,		//发送者id
-    state: 'on'				//on 或者off
+    to_user_id: _uid,   //你的id
+    from_user_id: uid,  //发送者id
+    state: 'on'         //on 或者off
     }
 }
 
@@ -15,11 +15,27 @@
 {
  action:'message',
  msg:{
-      to_user_id:  		//你的id
-      rom_user_id: 		//发送者id
+      to_user_id:  		 //你的id
+      rom_user_id: 		 //发送者id
       message_type: 'text',
-      message: , 		//消息字符串
-      timestamp:  		//时间格式如：“2015-12-02 11:55:42”
+      message: ,        //消息字符串
+      timestamp:  		  //时间格式如：“2015-12-02 11:55:42”
       }
 }
 
+3. 文件消息
+{
+ action:'message',
+ msg:{
+      to_user_id:       //你的id
+      rom_user_id:      //发送者id
+      message_type: 'file',
+      message:{
+        file_type:,     //文件类型
+        file_length:,   //文件长度
+        file_name:,     //文件名
+        url:            //文件地址
+      },   
+      timestamp:        //时间格式如：“2015-12-02 11:55:42”
+      }
+}

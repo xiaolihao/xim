@@ -115,7 +115,7 @@ $(document).ready(function(){
         success:function(user) {  
             console.log(user);
 
-            display_frend(user.friends);
+            display_frend(user.FRIENDS);
 
             var socket = new SockJS('/xim/chat');
             socket.onopen = function() {

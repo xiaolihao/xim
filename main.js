@@ -10,7 +10,7 @@ var sockjs = require('sockjs');
 
 settings.socket.port=argv.port||settings.socket.port;
 
-// var io = require('socket.io')(settings.socket.port);
+// var io = require('socket.io')(settings.socket.port)
 // websocket:  false
 var io = sockjs.createServer({
 	sockjs_url: 'http://cdn.jsdelivr.net/sockjs/1.0.1/sockjs.min.js',
@@ -22,7 +22,7 @@ var server = http.createServer(function handler (req, res) {
 		function (err, data) {
 		    if (err) {
 			res.writeHead(500);
-			return res.end('Error loading index.html');
+			return res.end('error loading index.html');
 		    }
 
 		    res.writeHead(200);
@@ -52,7 +52,12 @@ io.on('connection', function(socket){
 		*
 		*/
 
-		var d = JSON.parse(message);
+		var d=null;
+		try{
+		    d = JSON.parse(message);
+		 }catch(e){
+		    return console.error(e);
+		  }
 
 		shared.logger.info(message);
 		switch(d.action){
