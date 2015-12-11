@@ -1,56 +1,238 @@
 <!doctype html>
-<html>
-  <head>
-    <title>Socket.IO chat</title>
-    <style>
-      * { margin: 0; padding: 0; box-sizing: border-box; }
-      body { font: 13px Helvetica, Arial; }
-      form { background: #000; padding: 3px; position: fixed; bottom: 0; width: 100%; }
-      form input { border: 0; padding: 10px; width: 90%; margin-right: .5%; }
-      form button { width: 9%; background: rgb(130, 224, 255); border: none; padding: 10px; }
-      #messages { list-style-type: none; margin: 0; padding: 0; }
-      #messages li { padding: 5px 10px; }
-      #messages li:nth-child(odd) { background: #eee; }
-    </style>
-  </head>
-  <body>
-    <ul id="messages"></ul>
-    <form action="">
-      <input id="m" autocomplete="off" /><button>Send</button>
-    </form>
+<head>
+<script src="http://code.jquery.com/jquery.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jquery.form/3.51/jquery.form.js"></script>
+<style>
+form{ display: block; margin: 20px auto; background: #eee; border-radius: 10px; padding: 15px }
+#progress { position:relative; width:400px; border: 1px solid #ddd; padding: 1px; border-radius: 3px; }
+#bar { background-color: #B4F5B4; width:0%; height:20px; border-radius: 3px; }
+#percent { position:absolute; display:inline-block; top:3px; left:48%; }
+
+.friend_list ul { }
+.friend_list ul li { position: relative; padding: 3px 6px; height: 31px; _padding-bottom: 0px; }
+.friend_list ul li.hover { background: #ebeef3; }
+.friend_list ul li.choosed { background: #ebeef3; }
+.friend_list ul li a { }
+
+body {
+    background-size:     cover;                      /* <------ */
+    background-repeat:   no-repeat;
+    background-position: center center;              /* optional, center the image */
+}
+#abc {
+width:100%;
+height:100%;
+opacity:.95;
+top:0;
+left:0;
+display:none;
+position:fixed;
+background-color:#313131;
+overflow:auto
+}
+
+div#popupContact {
+position:absolute;
+left:50%;
+top:17%;
+margin-left:-202px;
+font-family:'Raleway',sans-serif
+}
+
+</style>
+</head>
+<body>
+<h1>Ajax File Upload Demo</h1>
+<script src="http://cdn.jsdelivr.net/sockjs/1.0.1/sockjs.min.js"></script>
+
+<div id="abc">
+<!-- Popup Div Starts Here -->
+<div id="popupContact">
+<!-- Contact Us Form -->
+<hr>
+<input id="email" name="email" placeholder="email" type="text">
+<input id="password" name="password" placeholder="password" type="text">
+<button id="loginbtn">Send</button>
+</div>
+<!-- Popup Div Ends Here -->
+</div>
+
+<form id="myForm" action="http://127.0.0.1:9018/api/v1/upload" method="post" enctype="multipart/form-data">
+     <input type="file" size="60" name="myfile">
+     <input type="submit" value="Ajax File Upload">
+ </form>
+ 
+ 
+ <div id="progress">
+        <div id="bar"></div>
+        <div id="percent">0%</div >
+</div>
+<br/>
     
-    <script src="https://cdn.socket.io/socket.io-1.2.0.js"></script>
-    <script src="http://code.jquery.com/jquery-1.11.1.js"></script>
-    <script>
-      var socket = io('http://localhost:9019');
+<div id="message"></div>
 
-      var msg={
-        action:'init',
-        msg:{
-          user_id:'1'
-        }
-      }
-      socket.emit('message', JSON.stringify(msg));
-      $('form').submit(function(){
+<div>
+<input  id="m" autocomplete="off" />
+<button id="btn">Send</button>
+</div>
 
-        var msg={
-          action:'message',
-          msg:{
-            to_user_id: '2',
-            from_user_id: '1',
-            message_type: 'text',
-            message: $('#m').val(),
-            timestamp: new Date().toJSON().replace('T', ' ').substr(0, 19)
-          }
-        }
-        socket.emit('message', JSON.stringify(msg));
+<div class="friend_list">
+    <ul>
+        
+    </ul>
+</div>
 
-        $('#m').val('');
-        return false;
-      });
-      socket.on('message', function(msg){
-        $('#messages').append($('<li>').text(msg));
-      });
-    </script>
-  </body>
+<script>
+
+function display_frend(friends){
+
+    friends.forEach(function(v){
+        $(".friend_list ul").append('<li id="'+v.ID+'">'+'<label class="state"></label><a class="frend_name">'+v.EMAIL+'</a></li>');
+
+    });
+
+    $(".friend_list li").mouseover(function(){$(this).addClass("hover").siblings().removeClass("hover")}).mouseout(function(){$(this).removeClass("hover").siblings().removeClass("hover")});
+    $(".friend_list li").dblclick(function(){
+        $(this).addClass("choosed").siblings().removeClass("choosed");
+    });
+}
+
+$(document).ready(function(){
+
+    document.getElementById('abc').style.display = "block";
+    $('#loginbtn').click(function(){
+        
+        document.getElementById('abc').style.display="none";
+        $.ajax( {  
+        url:'http://127.0.0.1:9018/api/v1/login',  
+        data:{  
+             email : $('#email').val(),  
+             password: $('#password').val()  
+        },  
+        type:'post',  
+        cache:false,  
+        dataType:'json',  
+        success:function(user) {  
+            console.log(user);
+
+            display_frend(user.friends);
+
+            var socket = new SockJS('/xim/chat');
+            socket.onopen = function() {
+                var msg={
+                action:'init',
+                msg:{
+                        user_id:user.ID+''
+                    }
+                }
+                socket.send(JSON.stringify(msg));
+            };
+            socket.onmessage = function(e) {
+                var _msg=JSON.parse(e.data);
+                if(_msg.action=='message'&&_msg.msg.message_type=='file'&&_msg.msg.message.file_type=='image/jpeg'){
+
+                    $('body').css('background-image','url('+_msg.msg.message.url+')');
+                }
+                console.log(e.data);
+            };
+            socket.onclose = function() {
+                console.log('close');
+            };
+
+
+
+            $('#btn').click(function(){
+                var to_user_id=$(".friend_list li.choosed").attr("id");
+
+                if(!to_user_id){
+                    alert('select a friend!');
+                    return;
+                }
+                var msg={
+                action:'message',
+                msg:{
+                        to_user_id: to_user_id+'',
+                        from_user_id: user.ID+'',
+                        message_type: 'text',
+                        message: $('#m').val(),
+                        timestamp: new Date().toJSON().replace('T', ' ').substr(0, 19)
+                    }
+                }
+                socket.send(JSON.stringify(msg));
+                $('#m').val('');
+            });
+
+            var options = { 
+                beforeSend: function() 
+                {
+                    var to_user_id=$(".friend_list li.choosed").attr("id");
+
+                    if(!to_user_id){
+                        alert('select a friend!');
+                        return;
+                    }
+                    $("#progress").show();
+                    $("#bar").width('0%');          
+                    $("#percent").html("0%");
+                },
+                uploadProgress: function(event, position, total, percentComplete) 
+                {
+                    $("#bar").width(percentComplete+'%');
+                    $("#percent").html(percentComplete+'%');
+
+                
+                },
+                success: function() 
+                {
+                    console.log('response');
+                    $("#bar").width('100%');
+                    $("#percent").html('100%');
+
+                },
+                complete: function(response) 
+                {
+                    console.log(response);
+                    var _msg=JSON.parse(response.responseText);
+                    var msg={
+                      action:'message',
+                      msg:{
+                        to_user_id: $(".friend_list li.choosed").attr("id")+'',
+                        from_user_id: user.ID,
+                        message_type: 'file',
+                        message: {
+                            file_type:_msg.file_type,
+                            file_length: _msg.file_length,
+                            file_name: _msg.filename,
+                            url:_msg.url
+                        },
+                        timestamp:_msg.timestamp
+                      }
+                    }
+                    socket.send(JSON.stringify(msg));
+                },
+                error: function()
+                {
+                    $("<font color='red'> ERROR: unable to upload files</font>").appendTo('#messages');
+                }
+             
+            }; 
+
+        $("#myForm").ajaxForm(options);
+
+        },
+        error : function(err) {  
+          console.log(err); 
+        }  
+    });
+
+});/*loginbtn click*/
+
+
+
+});
+
+</script>
+</body>
+
+
 </html>

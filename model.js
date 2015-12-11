@@ -448,7 +448,7 @@ var server_model = backbone.Model.extend({
         								}
         							}
 
-        					server_model.emit_message(message.msg.message.target_user_id, _message, true);
+        					server_model.write_message(message.msg.message.target_user_id, _message);
         						
         					_message.msg.to_user_id=message.msg.user_id;
         					_message.msg.from_user_id=message.msg.message.target_user_id;
@@ -481,7 +481,7 @@ var server_model = backbone.Model.extend({
         								}
         							}
 
-        			server_model.emit_message(message.msg.message.target_user_id, _message, true);
+        			server_model.write_message(message.msg.message.target_user_id, _message);
         						
         			_message.msg.to_user_id=message.msg.user_id;
         			_message.msg.from_user_id=message.msg.message.target_user_id;

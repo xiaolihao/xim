@@ -18,7 +18,7 @@ var io = sockjs.createServer({
 });
 
 var server = http.createServer(function handler (req, res) {
-    fs.readFile(__dirname + '/c1.html',
+    fs.readFile(__dirname + '/index.html',
 		function (err, data) {
 		    if (err) {
 			res.writeHead(500);

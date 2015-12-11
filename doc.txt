@@ -1,0 +1,25 @@
+
+收到的消息：
+
+1. 好友上线下线通知
+{
+    action: 'state-notify',
+    msg: {
+    to_user_id: _uid,	 	//你的id
+    from_user_id: uid,		//发送者id
+    state: 'on'				//on 或者off
+    }
+}
+
+2. 普通消息
+{
+ action:'message',
+ msg:{
+      to_user_id:  		//你的id
+      rom_user_id: 		//发送者id
+      message_type: 'text',
+      message: , 		//消息字符串
+      timestamp:  		//时间格式如：“2015-12-02 11:55:42”
+      }
+}
+

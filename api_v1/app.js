@@ -68,7 +68,7 @@ function login(req, res, next){
 	async.waterfall([
 		function(callback){
 			mysql_conn.getConnection(function(err,conn){
-					conn.query('SELECT ID,NICK_NAME,REGISTER_DATE,LASTLOGIN_DATE,INET_NTOA(LASTLOGIN_IP) AS LASTLOGIN_IP,EMAIL FROM XIM_USER WHERE EMAIL=? AND PASSWORD=?',
+					conn.query('SELECT ID,NICK_NAME,DATE_FORMAT(REGISTER_DATE, "%Y-%m-%d %H:%i:%s") AS REGISTER_DATE,DATE_FORMAT(LASTLOGIN_DATE, "%Y-%m-%d %H:%i:%s") AS LASTLOGIN_DATE ,INET_NTOA(LASTLOGIN_IP) AS LASTLOGIN_IP,EMAIL FROM XIM_USER WHERE EMAIL=? AND PASSWORD=?',
 						[req.params.email, req.params.password], function(err,rows,fields){
 						if(err){
 							callback(err)
@@ -84,7 +84,7 @@ function login(req, res, next){
 		},
 		
 		function(conn, me, callback){
-			conn.query('SELECT A.ID,A.NICK_NAME,A.REGISTER_DATE,A.LASTLOGIN_DATE,INET_NTOA(A.LASTLOGIN_IP) AS LASTLOGIN_IP,A.EMAIL FROM XIM_USER AS A INNER JOIN (SELECT USERID_2 AS ID FROM XIM_FRIENDSHIP WHERE USERID_1=?) AS B ON A.ID=B.ID',
+			conn.query('SELECT A.ID,A.NICK_NAME,DATE_FORMAT(A.REGISTER_DATE, "%Y-%m-%d %H:%i:%s") AS REGISTER_DATE,DATE_FORMAT(A.LASTLOGIN_DATE, "%Y-%m-%d %H:%i:%s") AS LASTLOGIN_DATE ,INET_NTOA(A.LASTLOGIN_IP) AS LASTLOGIN_IP,A.EMAIL FROM XIM_USER AS A INNER JOIN (SELECT USERID_2 AS ID FROM XIM_FRIENDSHIP WHERE USERID_1=?) AS B ON A.ID=B.ID',
 			me.ID, function(err,rows,fields){
 			conn.release();
 			if(err)
@@ -103,7 +103,7 @@ function login(req, res, next){
 			}
 			else{
 				update_login(me.ID, req);
-				me.friends=friends;
+				me.FRIENDS=friends;
 				res.send(200, me);
 			}
 
@@ -130,7 +130,7 @@ function update_login(user_id, req){
 
 function load_friend(req, res, next){
 	mysql_conn.getConnection(function(err,conn){
-		conn.query('SELECT A.ID,A.NICK_NAME,A.REGISTER_DATE,A.LASTLOGIN_DATE,INET_NTOA(A.LASTLOGIN_IP),A.EMAIL FROM XIM_USER AS A INNER JOIN (SELECT USERID_2 AS ID FROM XIM_FRIENDSHIP WHERE USERID_1=?) AS B ON A.ID=B.ID',
+		conn.query('SELECT A.ID,A.NICK_NAME,DATE_FORMAT(A.REGISTER_DATE, "%Y-%m-%d %H:%i:%s") AS REGISTER_DATE,DATE_FORMAT(A.LASTLOGIN_DATE, "%Y-%m-%d %H:%i:%s") AS LASTLOGIN_DATE ,INET_NTOA(A.LASTLOGIN_IP),A.EMAIL FROM XIM_USER AS A INNER JOIN (SELECT USERID_2 AS ID FROM XIM_FRIENDSHIP WHERE USERID_1=?) AS B ON A.ID=B.ID',
 			req.params.user_id, function(err,rows,fields){
 			conn.release();
 			if(err)
