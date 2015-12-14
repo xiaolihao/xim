@@ -28,6 +28,17 @@ var client_model = backbone.Model.extend({
 			}
 	},
 
+
+	add_friend: function(fid){
+		this.get('friends')[fid]='on';
+		shared.logger.info('add '+fid);
+	},
+
+	del_friend: function(fid){
+		delete this.get('friends')[fid];
+		shared.logger.info('del '+fid);
+	},
+
 	write_redis_info: function(){
 		// write logininfo to redis
 		// redis hash
@@ -198,6 +209,8 @@ var client_model = backbone.Model.extend({
 
 	},/*initialize*/
 
+
+
 	write_message: function (message) {
 		var self = this;
 		var socket = this.get('socket');
@@ -314,10 +327,21 @@ var server_model = backbone.Model.extend({
 	// write directly to online socket
 	write_message: function(uid, message){
 		var clients = this.get('clients');
-		var cs = clients.where({user_id: uid});
+		var cs = clients.where({user_id: uid+''});
 
 		_.each(cs, function(v){
 			v.write_message(message);
+
+			if(message.action=='operation-notify'){
+
+					if(message.msg.message_type=='friend-add')
+						v.add_friend(message.msg.from_user_id);
+					
+					
+					else if(message.msg.message_type=='friend-delete')
+						v.del_friend(message.msg.from_user_id);
+			}
+
 			shared.logger.info('[write]'+JSON.stringify(message));
 
 		});
@@ -325,7 +349,7 @@ var server_model = backbone.Model.extend({
 
 	emit_message: function(uid, message, cache){
 		var clients = this.get('clients');
-		var cs = clients.where({user_id: uid});
+		var cs = clients.where({user_id: uid+''});
 		var _message = message;
 
 		// not on same node

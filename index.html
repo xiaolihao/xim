@@ -57,6 +57,17 @@ font-family:'Raleway',sans-serif
 <!-- Popup Div Ends Here -->
 </div>
 
+<!-- Popup Div Starts Here -->
+<div id="addFriendDiv">
+<!-- Contact Us Form -->
+<hr>
+<input id="uid" name="uid" placeholder="uid" type="text">
+<input id="umessage" name="message" placeholder="message" type="text">
+<button id="add">Add</button>
+<button id="delete">Delete</button>
+</div>
+<!-- Popup Div Ends Here -->
+
 <form id="myForm" action="http://127.0.0.1:9018/api/v1/upload" method="post" enctype="multipart/form-data">
      <input type="file" size="60" name="myfile">
      <input type="submit" value="Ajax File Upload">
@@ -133,12 +144,90 @@ $(document).ready(function(){
 
                     $('body').css('background-image','url('+_msg.msg.message.url+')');
                 }
+
+
+                if(_msg.action=='operation'){
+
+                    switch(_msg.msg.operation){
+                        case 'friend-add-request':
+                            var r=confirm(_msg.msg.user_id +" is requesting you as friend ?");
+                            var msg={
+                                    action:'operation',
+                                    msg:{
+                                            user_id: user.ID+'',
+                                            operation: 'friend-add-agree',
+                                            message: {
+                                                target_user_id: _msg.msg.user_id+'',
+                                                attach_message: ''
+                                            },
+                                            timestamp: new Date().toJSON().replace('T', ' ').substr(0, 19)
+                                        }
+                                    };
+                            if(r==true){
+                                console.log('agree to add');
+                            }
+                            else
+                            {
+                                msg.msg.operation='friend-add-reject';
+                                console.log('reject to add');
+                            }
+ 
+                            socket.send(JSON.stringify(msg));
+                            console.log(JSON.stringify(msg));
+                        break;
+                    }
+                }
+
+
                 console.log(e.data);
             };
             socket.onclose = function() {
                 console.log('close');
             };
 
+
+            $('#add').click(function(){
+                var msg={
+                action:'operation',
+                msg:{
+                        user_id: user.ID,
+                        operation: 'friend-add-request',
+                        message: {
+                            target_user_id: $('#uid').val()+'',
+                            attach_message: $('#umessage').val()
+                        },
+                        timestamp: new Date().toJSON().replace('T', ' ').substr(0, 19)
+                    }
+                };
+
+                socket.send(JSON.stringify(msg));
+                $('#uid').val('');
+                $('#umessage').val('');
+            });
+
+            $('#delete').click(function(){
+                var to_user_id=$(".friend_list li.choosed").attr("id");
+
+                if(!to_user_id){
+                    alert('select a friend!');
+                    return;
+                }
+
+                var msg={
+                action:'operation',
+                msg:{
+                        user_id: user.ID+'',
+                        operation: 'friend-delete',
+                        message: {
+                            target_user_id: to_user_id+'',
+                            attach_message: ''
+                        },
+                        timestamp: new Date().toJSON().replace('T', ' ').substr(0, 19)
+                    }
+                };
+                socket.send(JSON.stringify(msg));
+                $('#m').val('');
+            });
 
 
             $('#btn').click(function(){
@@ -202,7 +291,7 @@ $(document).ready(function(){
                         message: {
                             file_type:_msg.file_type,
                             file_length: _msg.file_length,
-                            file_name: _msg.filename,
+                            file_name: _msg.file_name,
                             url:_msg.url
                         },
                         timestamp:_msg.timestamp
