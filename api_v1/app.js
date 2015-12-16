@@ -44,16 +44,16 @@ function register(req, res, next){
 	}
 
 	mysql_conn.getConnection(function(err,conn){
-					conn.query('INSERT INTO XIM_USER SET ?', 
-					{'EMAIL': req.params.email, 'PASSWORD': req.params.password}, function(err,rows,fields){
-						conn.release();
-						if(err){
-							res.send(500, err);
-						}
+			conn.query('INSERT INTO XIM_USER SET ?', 
+			{'EMAIL': req.params.email, 'PASSWORD': req.params.password}, function(err,rows,fields){
+				conn.release();
+				if(err){
+					res.send(500, err);
+				}
 
-						else
-							res.send(200);
-					})
+				else
+					res.send(200);
+			})
 	});
 
 }
@@ -71,10 +71,14 @@ function login(req, res, next){
 					conn.query('SELECT ID,NICK_NAME,DATE_FORMAT(REGISTER_DATE, "%Y-%m-%d %H:%i:%s") AS REGISTER_DATE,DATE_FORMAT(LASTLOGIN_DATE, "%Y-%m-%d %H:%i:%s") AS LASTLOGIN_DATE ,INET_NTOA(LASTLOGIN_IP) AS LASTLOGIN_IP,EMAIL FROM XIM_USER WHERE EMAIL=? AND PASSWORD=?',
 						[req.params.email, req.params.password], function(err,rows,fields){
 						if(err){
+							conn.release();
 							callback(err)
 						}
-						else if(rows.length==0)
+						else if(rows.length==0){
+							conn.release();
 							callback('user name or password wrong');
+						}
+							
 						else{
 
 							callback(null, conn, rows[0]);
@@ -112,7 +116,9 @@ function login(req, res, next){
 
 
 function update_login(user_id, req){
+
 	var client_ip=req.headers['x-forwarded-for']||req.connection.remoteAddress;
+	console.log(client_ip);
 	if(ip.isV6Format(client_ip))
 		client_ip='255.255.255.255';
 
@@ -131,7 +137,7 @@ function update_login(user_id, req){
 function load_friend(req, res, next){
 	mysql_conn.getConnection(function(err,conn){
 		conn.query('SELECT A.ID,A.NICK_NAME,DATE_FORMAT(A.REGISTER_DATE, "%Y-%m-%d %H:%i:%s") AS REGISTER_DATE,DATE_FORMAT(A.LASTLOGIN_DATE, "%Y-%m-%d %H:%i:%s") AS LASTLOGIN_DATE ,INET_NTOA(A.LASTLOGIN_IP) AS LASTLOGIN_IP,A.EMAIL FROM XIM_USER AS A INNER JOIN (SELECT USERID_2 AS ID FROM XIM_FRIENDSHIP WHERE USERID_1=?) AS B ON A.ID=B.ID',
-			req.params.user_id, function(err,rows,fields){
+			req.params.id, function(err,rows,fields){
 			conn.release();
 			if(err)
 				res.send(500, err);
@@ -204,6 +210,42 @@ function file_upload(req, res, next){
 	});
 };
 
+function create_group(req, res, next){
+	if(!req.params.name || !req.params.id){
+		res.send(500, 'error paramters');
+	}
+
+	mysql_conn.getConnection(function(err,conn){
+			conn.query('INSERT INTO XIM_GROUP SET ?', 
+			{'NAME': req.params.name, 'OWNER': req.params.id}, function(err,rows,fields){
+				
+				if(err){
+					conn.release();
+					res.send(500, err);
+				}
+
+				else{
+					var gid=rows.insertId;
+					conn.query('INSERT INTO XIM_GROUP_MEMBER SET ?',{
+						'USERID': req.params.id, 'GROUPID': rows.insertId
+					}, function(err, rows, fields){
+						conn.release();
+
+						if(err){
+							res.send(500, err);
+						}
+						else
+							res.send({
+								group_id: gid,
+								name: req.params.name,
+								owner: req.params.id
+							});
+					});
+				}
+			})
+	});
+}
+
 
 /////////////////////////////// server ///////////////////////////////
 var server = restify.createServer({name: settings.api.name});
@@ -218,7 +260,8 @@ server.get('/api/v1/download/:id', file_download);
 
 server.post('/api/v1/register', register);
 server.post('/api/v1/login', login);
-server.post('/api/v1/friend', load_friend);
+server.get('/api/v1/friend/:id', load_friend);
+server.post('/api/v1/group', create_group);
 
 server.listen(settings.api.port, function() {
   console.log('%s listening at %s', server.name, server.url);

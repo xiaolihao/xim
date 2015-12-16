@@ -16,7 +16,7 @@
  action:'message',
  msg:{
       to_user_id:  		 //你的id
-      rom_user_id: 		 //发送者id
+      from_user_id: 		 //发送者id
       message_type: 'text',
       message: ,        //消息字符串
       timestamp:  		  //时间格式如：“2015-12-02 11:55:42”

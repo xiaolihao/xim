@@ -45,7 +45,7 @@ io.on('connection', function(socket){
 		/** message format
 		*	
 		*	{
-		*		action: 	, 	// init, state-notify, operation-notify, message, operation
+		*		action: 	, 	// init, state-notify, operation-notify, message, gmessage, operation
 		*		msg: {}
 		*		
 		*	}
@@ -78,6 +78,22 @@ io.on('connection', function(socket){
 					'user_id': d.msg.user_id+'',
 					'ip': client_ip
 				});
+
+			break;
+
+			/** msg format
+			*	
+			*	{
+			*		group_id: 		,
+			*		from_user_id: 	,
+			*		message_type: 	,	// text, image, file, voice, system
+			*		message: 		,   
+			*		timestamp: 			
+			*		
+			*	}
+			*
+			*/
+			case 'gmessage':
 
 			break;
 
@@ -132,7 +148,7 @@ function init(){
 		shared.logger.info('[recv:sub]'+'channel:'+channel+',message:'+message);
 
 		var d = JSON.parse(message);
-		server_model.write_message(d.msg.to_user_id, d);
+		server_model.write_message(d.msg.to_user_id, d, false);
 	});
 }
 
