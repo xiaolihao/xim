@@ -71,7 +71,8 @@ var client_model = backbone.Model.extend({
 
 			// userid: on/off
 			'friends': {},
-			'payload': {}
+			'payload': {},
+			'groups': new group_collection()
 			}
 	},
 
@@ -132,6 +133,45 @@ var client_model = backbone.Model.extend({
 		});
 
 	},
+
+	read_group_list: function(){
+		var uid = this.get('user_id');
+		var self = this;
+
+		shared.mysql_conn.getConnection(function(err,conn){
+                conn.query('SELECT NAME,OWNER,C.* FROM XIM_GROUP INNER JOIN(SELECT B.GROUPID, A.USERID,A.GROUP_NAME from XIM_GROUP_MEMBER AS A INNER JOIN(SELECT GROUPID from XIM_GROUP_MEMBER WHERE USERID=?) AS B ON B.GROUPID=A.GROUPID) AS C ON XIM_GROUP.ID=C.GROUPID',
+                uid, 
+                function(err, rows, fields){
+                    conn.release();
+                    if(err){
+                        shared.logger.info(err);
+                    }
+
+                    var groups = self.get('groups');
+                    _.each(rows, function(v){
+                    	var gs=groups.where({group_id: v.GROUPID+''});
+                    	var g=null;
+                    	if(gs.length==0){
+                    		g=new group_model({
+                    			'group_id': v.GROUPID+'',
+                    			'owner': v.OWNER+'',
+                    			'name': v.NAME
+                    		});
+
+                    		groups.add(g);
+                    	}
+                    	else
+                    		g=gs[0];
+
+                    	g.get('members')[v.USERID]=v.GROUP_NAME;
+                    	
+                    });
+
+                    console.log(JSON.stringify(groups));
+                });
+            });
+	},
+
 
 	read_friend_list: function(need_notify_friend){
 
@@ -258,6 +298,7 @@ var client_model = backbone.Model.extend({
 
 		this.read_offline_msg();
 
+		this.read_group_list();
 	},/*initialize*/
 
 
@@ -364,91 +405,18 @@ var client_collection = backbone.Collection.extend({
 
 var server_model = backbone.Model.extend({
 	default: {
-		'clients': null,
-		'groups': null
-	},
+		'clients': null
+			},
 
 	initialize: function(){
 		this.set('clients', new client_collection());
-		this.set('groups', new group_collection());
 	},
 
-	emit_group_message: function(gmessage){
-		var groups = this.get('groups');
-		var self = this;
-
-		var gs = groups.where({group_id: gmessage.msg.group_id+''});
-		if(gs.length == 0){
-
-			async.parallel([
-
-					function(callback){
-						shared.mysql_conn.getConnection(function(err,conn){
-							conn.query('SELECT USERID,GROUP_NAME FROM XIM_GROUP_MEMBER WHERE GROUPID=?',
-							gmessage.msg.group_id, 
-			        		function(err, rows, fields){
-			        			conn.release();
-			        			if(err){
-			        				shared.logger.info(err);
-			        				callback(err);
-			        			}
-
-			        			callback(null, rows);
-			        		});
-						});
-
-
-					},/* f1 */
-					function(callback){
-						shared.mysql_conn.getConnection(function(err,conn){
-							conn.query('SELECT NAME,OWNER FROM XIM_GROUP WHERE ID=?',
-							gmessage.msg.group_id, 
-			        		function(err, rows, fields){
-			        			conn.release();
-			        			if(err){
-			        				shared.logger.info(err);
-			        				callback(err);
-			        			}
-
-			        			callback(null, rows);
-			        		});
-						});
-
-					}/* f2 */
-				], 
-
-
-				function(err, results){
-
-					if(err)
-						return;
-
-
-					var group = new group_model({
-												'group_id': gmessage.msg.group_id,
-												'owner': results[1][0].OWNER,
-												'name': results[1][0].NAME				
-											});
-					group.add_members(results[0]);
-					self.add_group(group);
-					group.emit_message(gmessage);
-			});
-
-			
-		}/* if */
-
-		else{
-			gs[0].emit_message(gmessage)
-		}
-	},
 
 	add_client: function(client){
 		this.get('clients').add(client);
 	},
 
-	add_group: function(group){
-		this.get('groups').add(group);
-	},
 
 	print: function(){
 		shared.logger.info(this.get('clients').toJSON());

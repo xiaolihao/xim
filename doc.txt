@@ -28,7 +28,7 @@
  action:'message',
  msg:{
       to_user_id:       //你的id
-      rom_user_id:      //发送者id
+      from_user_id:      //发送者id
       message_type: 'file',
       message:{
         file_type:,     //文件类型

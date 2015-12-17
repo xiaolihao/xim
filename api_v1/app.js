@@ -11,12 +11,11 @@ var ip = require('ip');
 var settings = require('../config.js');
 
 
-var mysql_conn=null;
+var mysql_conn = null;
 var db = new mongo.Db(settings.mongodb.database, 
 						new mongo.Server(settings.mongodb.host, settings.mongodb.port));
 
 var gfs = null;
-
 db.open(function(err){
 	if(err){
 		console.log(err);
@@ -210,6 +209,68 @@ function file_upload(req, res, next){
 	});
 };
 
+function load_group(req, res, next){
+
+	if(!req.params.id){
+		res.send(500, 'error paramters');
+	}
+	async.parallel([
+
+			function(callback){
+				mysql_conn.getConnection(function(err,conn){
+					conn.query('SELECT USERID,GROUP_NAME FROM XIM_GROUP_MEMBER WHERE GROUPID=?',
+					req.params.id, 
+	        		function(err, rows, fields){
+	        			conn.release();
+	        			if(err){
+	        				console.log(err);
+	        				callback(err);
+	        			}
+
+	        			callback(null, rows);
+	        		});
+				});
+
+
+			},/* f1 */
+			function(callback){
+				mysql_conn.getConnection(function(err,conn){
+					conn.query('SELECT NAME,OWNER FROM XIM_GROUP WHERE ID=?',
+					req.params.id, 
+	        		function(err, rows, fields){
+	        			conn.release();
+	        			if(err){
+	        				sconsole.log(err);
+	        				callback(err);
+	        			}
+
+	        			callback(null, rows);
+	        		});
+				});
+
+			}/* f2 */
+		], 
+
+
+		function(err, results){
+
+			if(err||results[1].length==0){
+				console.log('group:'+req.params.id+' not exsits');
+				res.send(500, 'group not exsits');
+			}
+
+
+			var group ={
+						group_id: req.params.id,
+						owner: results[1][0].OWNER,
+						name: results[1][0].NAME,
+						members:results[0]
+						};
+			res.send(group);
+			
+	});
+};
+
 function create_group(req, res, next){
 	if(!req.params.name || !req.params.id){
 		res.send(500, 'error paramters');
@@ -244,7 +305,7 @@ function create_group(req, res, next){
 				}
 			})
 	});
-}
+};
 
 
 /////////////////////////////// server ///////////////////////////////
@@ -262,6 +323,7 @@ server.post('/api/v1/register', register);
 server.post('/api/v1/login', login);
 server.get('/api/v1/friend/:id', load_friend);
 server.post('/api/v1/group', create_group);
+server.get('/api/v1/group/:id', load_group);
 
 server.listen(settings.api.port, function() {
   console.log('%s listening at %s', server.name, server.url);
