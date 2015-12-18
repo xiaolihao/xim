@@ -7,7 +7,6 @@ var async = require('async');
 var server_model=null;
 
 
-
 var group_model = backbone.Model.extend({
 	defaults: function(){
 		return {
@@ -20,24 +19,20 @@ var group_model = backbone.Model.extend({
 
 	initialize: function(){},
 
-	add_members: function(ms){
-		var m=this.get('members');
-
-		_.each(ms, function(v){
-			m[v.USERID]=v.GROUP_NAME;
-		});
-	},
-
 	emit_message: function(gmessage){
 		var members=this.get('members');
 			_.each(members, function(v, k, m){
+				
+				if(k==gmessage.msg.from_user_id)
+					return;
+
 				var message={
 					action: 'gmessage',
 					msg:{
 						group_id: gmessage.msg.group_id,
 						to_user_id: k,
 						from_user_id: gmessage.msg.from_user_id,
-						message_type: gmessge.msg.message_type,
+						message_type: gmessage.msg.message_type,
 						message: gmessage.msg.message,
 						timestamp: gmessage.msg.timestamp
 					}
@@ -76,6 +71,12 @@ var client_model = backbone.Model.extend({
 			}
 	},
 
+	emit_group_message: function(gmessage){
+		var gs=this.get('groups').where({group_id: gmessage.msg.group_id+''});
+		if(gs.length == 0)
+			return;
+		gs[0].emit_message(gmessage);
+	},
 
 	add_friend: function(fid){
 		this.get('friends')[fid]='on';
@@ -464,6 +465,16 @@ var server_model = backbone.Model.extend({
 		
 	},
 
+	emit_group_message: function(gmessage){
+		var clients = this.get('clients');
+		var cs = clients.where({user_id: gmessage.msg.from_user_id+''});
+		if(cs.length == 0)
+			return;
+		
+
+		cs[0].emit_group_message(gmessage);
+	},
+
 	emit_message: function(uid, message, cache){
 		var clients = this.get('clients');
 		var cs = clients.where({user_id: uid+''});
@@ -487,6 +498,7 @@ var server_model = backbone.Model.extend({
         					{
         						'TO_USERID': uid, 
         						'FROM_USERID': message.msg.from_user_id||0,
+        						'FROM_GROUPID': message.msg.group_id||null,
         						'CREATED_DATE': message.msg.timestamp,
         						'MSG': JSON.stringify(message)
         					}, 

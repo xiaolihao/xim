@@ -94,7 +94,7 @@ io.on('connection', function(socket){
 			*
 			*/
 			case 'gmessage':
-
+				server_model.emit_group_message(d);
 			break;
 
 			/** msg format

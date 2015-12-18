@@ -14,6 +14,12 @@ form{ display: block; margin: 20px auto; background: #eee; border-radius: 10px; 
 .friend_list ul li.choosed { background: #ebeef3; }
 .friend_list ul li a { }
 
+.group_list ul { }
+.group_list ul li { position: relative; padding: 3px 6px; height: 31px; _padding-bottom: 0px; }
+.group_list ul li.hover { background: #ebeef3; }
+.group_list ul li.choosed { background: #ebeef3; }
+.group_list ul li a { }
+
 body {
     background-size:     cover;                      /* <------ */
     background-repeat:   no-repeat;
@@ -93,9 +99,20 @@ font-family:'Raleway',sans-serif
     </ul>
 </div>
 
+<div class="group_list">
+    <ul>
+        
+    </ul>
+</div>
+
+<div>
+<input  id="gm" autocomplete="off" />
+<button id="gbtn">Send</button>
+</div>
+
 <script>
 
-function display_frend(friends){
+function display_friend(friends){
 
     friends.forEach(function(v){
         $(".friend_list ul").append('<li id="'+v.ID+'">'+'<label class="state"></label><a class="frend_name">'+v.EMAIL+'</a></li>');
@@ -104,6 +121,19 @@ function display_frend(friends){
 
     $(".friend_list li").mouseover(function(){$(this).addClass("hover").siblings().removeClass("hover")}).mouseout(function(){$(this).removeClass("hover").siblings().removeClass("hover")});
     $(".friend_list li").dblclick(function(){
+        $(this).addClass("choosed").siblings().removeClass("choosed");
+    });
+}
+
+function display_group(groups){
+
+    groups.forEach(function(v){
+        $(".group_list ul").append('<li id="'+v.GROUP_ID+'">'+'<label class="state"></label><a class="group_name">'+v.NAME+'</a></li>');
+
+    });
+
+    $(".group_list li").mouseover(function(){$(this).addClass("hover").siblings().removeClass("hover")}).mouseout(function(){$(this).removeClass("hover").siblings().removeClass("hover")});
+    $(".group_list li").dblclick(function(){
         $(this).addClass("choosed").siblings().removeClass("choosed");
     });
 }
@@ -126,8 +156,8 @@ $(document).ready(function(){
         success:function(user) {  
             console.log(user);
 
-            display_frend(user.FRIENDS);
-
+            display_friend(user.FRIENDS);
+            display_group(user.GROUPS);
             var socket = new SockJS('/xim/chat');
             socket.onopen = function() {
                 var msg={
@@ -249,6 +279,28 @@ $(document).ready(function(){
                 }
                 socket.send(JSON.stringify(msg));
                 $('#m').val('');
+            });
+
+
+            $('#gbtn').click(function(){
+                var group_id=$(".group_list li.choosed").attr("id");
+
+                if(!group_id){
+                    alert('select a group!');
+                    return;
+                }
+                var msg={
+                action:'gmessage',
+                msg:{
+                        group_id: group_id+'',
+                        from_user_id: user.ID+'',
+                        message_type: 'text',
+                        message: $('#gm').val(),
+                        timestamp: new Date().toJSON().replace('T', ' ').substr(0, 19)
+                    }
+                }
+                socket.send(JSON.stringify(msg));
+                $('#gm').val('');
             });
 
             var options = { 

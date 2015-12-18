@@ -9,6 +9,7 @@ var mysql = require('mysql');
 var async = require('async');
 var ip = require('ip');
 var settings = require('../config.js');
+var _ = require('underscore');
 
 
 var mysql_conn = null;
@@ -70,6 +71,7 @@ function login(req, res, next){
 					conn.query('SELECT ID,NICK_NAME,DATE_FORMAT(REGISTER_DATE, "%Y-%m-%d %H:%i:%s") AS REGISTER_DATE,DATE_FORMAT(LASTLOGIN_DATE, "%Y-%m-%d %H:%i:%s") AS LASTLOGIN_DATE ,INET_NTOA(LASTLOGIN_IP) AS LASTLOGIN_IP,EMAIL FROM XIM_USER WHERE EMAIL=? AND PASSWORD=?',
 						[req.params.email, req.params.password], function(err,rows,fields){
 						if(err){
+							console.log(err);
 							conn.release();
 							callback(err)
 						}
@@ -89,17 +91,56 @@ function login(req, res, next){
 		function(conn, me, callback){
 			conn.query('SELECT A.ID,A.NICK_NAME,DATE_FORMAT(A.REGISTER_DATE, "%Y-%m-%d %H:%i:%s") AS REGISTER_DATE,DATE_FORMAT(A.LASTLOGIN_DATE, "%Y-%m-%d %H:%i:%s") AS LASTLOGIN_DATE ,INET_NTOA(A.LASTLOGIN_IP) AS LASTLOGIN_IP,A.EMAIL FROM XIM_USER AS A INNER JOIN (SELECT USERID_2 AS ID FROM XIM_FRIENDSHIP WHERE USERID_1=?) AS B ON A.ID=B.ID',
 			me.ID, function(err,rows,fields){
-			conn.release();
-			if(err)
+			
+			if(err){
+				console.log(err);
 				callback(null, me, []);
+			}
 
 			else
-				callback(null, me, rows);
+				callback(null, conn, me, rows);
 			});
-		}
+		},
 		
+		function(conn, me, friends, callback){
+            conn.query('SELECT NAME,OWNER,C.* FROM XIM_GROUP INNER JOIN(SELECT B.GROUPID, A.USERID,A.GROUP_NAME from XIM_GROUP_MEMBER AS A INNER JOIN(SELECT GROUPID from XIM_GROUP_MEMBER WHERE USERID=?) AS B ON B.GROUPID=A.GROUPID) AS C ON XIM_GROUP.ID=C.GROUPID',
+            me.ID, 
+            function(err, rows, fields){
+                conn.release();
+                if(err){
+                    console.log(err);
+                }
+
+                var groups = [];
+                _.each(rows, function(v){
+                	var gs=_.where(groups, {GROUP_ID: v.GROUPID+''});
+                	var g=null;
+                	if(gs.length==0){
+                		g={
+                			'GROUP_ID': v.GROUPID+'',
+                			'OWNER': v.OWNER+'',
+                			'NAME': v.NAME,
+                			'MEMBERS':[]
+                		};
+
+                		groups.push(g);
+                	}
+                	else
+                		g=gs[0];
+
+                	g['MEMBERS'].push({
+                		'USER_ID': v.USERID,
+                		'GROUP_NAME': v.GROUP_NAME
+                	});
+                	
+                });
+                callback(null, me, friends, groups)
+                
+            });
+		}
+
 		],
-		function(err, me, friends){
+		function(err, me, friends, groups){
 			if(err){
 				console.log(err);
 				res.send(500, err);
@@ -107,6 +148,7 @@ function login(req, res, next){
 			else{
 				update_login(me.ID, req);
 				me.FRIENDS=friends;
+				me.GROUPS=groups;
 				res.send(200, me);
 			}
 
@@ -214,60 +256,41 @@ function load_group(req, res, next){
 	if(!req.params.id){
 		res.send(500, 'error paramters');
 	}
-	async.parallel([
+	mysql_conn.getConnection(function(err,conn){
+		conn.query('SELECT NAME,OWNER,C.* FROM XIM_GROUP INNER JOIN(SELECT B.GROUPID, A.USERID,A.GROUP_NAME from XIM_GROUP_MEMBER AS A INNER JOIN(SELECT GROUPID from XIM_GROUP_MEMBER WHERE USERID=?) AS B ON B.GROUPID=A.GROUPID) AS C ON XIM_GROUP.ID=C.GROUPID',
+	            req.params.id, 
+	            function(err, rows, fields){
+	                conn.release();
+	                if(err){
+	                    console.log(err);
+	                }
 
-			function(callback){
-				mysql_conn.getConnection(function(err,conn){
-					conn.query('SELECT USERID,GROUP_NAME FROM XIM_GROUP_MEMBER WHERE GROUPID=?',
-					req.params.id, 
-	        		function(err, rows, fields){
-	        			conn.release();
-	        			if(err){
-	        				console.log(err);
-	        				callback(err);
-	        			}
+	                var groups = [];
+	                _.each(rows, function(v){
+	                	var gs=_.where(groups, {GROUP_ID: v.GROUPID+''});
+	                	var g=null;
+	                	if(gs.length==0){
+	                		g={
+	                			'GROUP_ID': v.GROUPID+'',
+	                			'OWNER': v.OWNER+'',
+	                			'NAME': v.NAME,
+	                			'MEMBERS':[]
+	                		};
 
-	        			callback(null, rows);
-	        		});
-				});
+	                		groups.push(g);
+	                	}
+	                	else
+	                		g=gs[0];
 
-
-			},/* f1 */
-			function(callback){
-				mysql_conn.getConnection(function(err,conn){
-					conn.query('SELECT NAME,OWNER FROM XIM_GROUP WHERE ID=?',
-					req.params.id, 
-	        		function(err, rows, fields){
-	        			conn.release();
-	        			if(err){
-	        				sconsole.log(err);
-	        				callback(err);
-	        			}
-
-	        			callback(null, rows);
-	        		});
-				});
-
-			}/* f2 */
-		], 
-
-
-		function(err, results){
-
-			if(err||results[1].length==0){
-				console.log('group:'+req.params.id+' not exsits');
-				res.send(500, 'group not exsits');
-			}
-
-
-			var group ={
-						group_id: req.params.id,
-						owner: results[1][0].OWNER,
-						name: results[1][0].NAME,
-						members:results[0]
-						};
-			res.send(group);
-			
+	                	g['MEMBERS'].push({
+	                		'USER_ID': v.USERID,
+	                		'GROUP_NAME': v.GROUP_NAME
+	                	});
+	                	
+	                });
+	                
+	                res.send(groups);
+	        });
 	});
 };
 
@@ -308,6 +331,23 @@ function create_group(req, res, next){
 };
 
 
+function create_friend(req, res, next){
+
+};
+function del_friend(req, res, next){
+
+};
+function del_group(req, res, next){
+
+};
+function get_group(req, res, next){
+
+};
+function put_group(req, res, next){
+
+};
+
+
 /////////////////////////////// server ///////////////////////////////
 var server = restify.createServer({name: settings.api.name});
 server.use(restify.CORS());
@@ -321,9 +361,18 @@ server.get('/api/v1/download/:id', file_download);
 
 server.post('/api/v1/register', register);
 server.post('/api/v1/login', login);
-server.get('/api/v1/friend/:id', load_friend);
+
+server.get('/api/v1/user/friend/:id', load_friend);
+server.get('/api/v1/user/group/:id', load_group);
+
+server.post('/api/v1/friend', create_friend);
+server.del('/api/v1/friend', del_friend);
+
 server.post('/api/v1/group', create_group);
-server.get('/api/v1/group/:id', load_group);
+server.del('/api/v1/group', del_group);
+server.get('/api/v1/group/:id', get_group);
+server.put('/api/v1/group', put_group);
+
 
 server.listen(settings.api.port, function() {
   console.log('%s listening at %s', server.name, server.url);
