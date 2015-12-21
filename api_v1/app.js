@@ -271,10 +271,10 @@ function load_group(req, res, next){
 	                	var g=null;
 	                	if(gs.length==0){
 	                		g={
-	                			'GROUP_ID': v.GROUPID+'',
-	                			'OWNER': v.OWNER+'',
-	                			'NAME': v.NAME,
-	                			'MEMBERS':[]
+	                			group_id: v.GROUPID+'',
+	                			owner: v.OWNER+'',
+	                			name: v.NAME,
+	                			members:[]
 	                		};
 
 	                		groups.push(g);
@@ -282,9 +282,9 @@ function load_group(req, res, next){
 	                	else
 	                		g=gs[0];
 
-	                	g['MEMBERS'].push({
-	                		'USER_ID': v.USERID,
-	                		'GROUP_NAME': v.GROUP_NAME
+	                	g['members'].push({
+	                		user_id: v.USERID,
+	                		group_name: v.GROUP_NAME
 	                	});
 	                	
 	                });
@@ -294,14 +294,77 @@ function load_group(req, res, next){
 	});
 };
 
+
+function del_group(req, res, next){
+	if(!req.params.gid || !req.params.ownerid){
+		res.send(500, 'error paramters');
+	}
+
+
+	async.series([
+
+		function(callback){
+			mysql_conn.getConnection(function(err,conn){
+				conn.query('SELECT USERID FROM XIM_GROUP_MEMBER WHERE GROUPID=?', 
+				req.params.gid, function(err,rows,fields){
+					conn.release();
+					
+					if(err){
+						console.log(err);
+						callback(err)
+					}
+
+					else
+						callback(null, rows);
+				})
+			});
+		},
+		function(callback){
+			mysql_conn.getConnection(function(err,conn){
+				conn.query('DELETE A,B FROM XIM_GROUP A, XIM_GROUP_MEMBER B WHERE A.ID=? AND A.OWNER=? AND A.ID=B.GROUPID;', 
+				[req.params.gid, req.params.ownerid], function(err,rows,fields){
+					conn.release();
+					
+					if(err){
+						console.log(err);
+						callback(err);
+					}
+
+					callback(null);
+				})
+			});
+		}
+
+		],
+		function(err, results){
+			if(err)
+				res.send(500, err);
+
+			var _message={
+				action: 'goperation',
+				msg: {
+					owner_id: req.params.ownerid,
+					operation: 'delete',
+					group_id: req.params.gid,
+					members:results[0],
+					timestamp: new Date().toJSON().replace('T', ' ').substr(0, 19)
+				}
+
+			}
+			res.send(_message);
+		}
+	);
+	
+};
+
 function create_group(req, res, next){
-	if(!req.params.name || !req.params.id){
+	if(!req.params.name || !req.params.ownerid){
 		res.send(500, 'error paramters');
 	}
 
 	mysql_conn.getConnection(function(err,conn){
 			conn.query('INSERT INTO XIM_GROUP SET ?', 
-			{'NAME': req.params.name, 'OWNER': req.params.id}, function(err,rows,fields){
+			{'NAME': req.params.name, 'OWNER': req.params.ownerid}, function(err,rows,fields){
 				
 				if(err){
 					conn.release();
@@ -311,7 +374,7 @@ function create_group(req, res, next){
 				else{
 					var gid=rows.insertId;
 					conn.query('INSERT INTO XIM_GROUP_MEMBER SET ?',{
-						'USERID': req.params.id, 'GROUPID': rows.insertId
+						'USERID': req.params.ownerid, 'GROUPID': rows.insertId
 					}, function(err, rows, fields){
 						conn.release();
 
@@ -322,7 +385,7 @@ function create_group(req, res, next){
 							res.send({
 								group_id: gid,
 								name: req.params.name,
-								owner: req.params.id
+								owner_id: req.params.ownerid
 							});
 					});
 				}
@@ -332,17 +395,77 @@ function create_group(req, res, next){
 
 
 function create_friend(req, res, next){
+	if(!req.params.myid || !req.params.targetid){
+		res.send(500, 'error paramters');
+	}
 
+	mysql_conn.getConnection(function(err,conn){
+		var _values='(\''+req.params.myid+'\',\''+req.params.targetid+'\')'+','+
+					'(\''+req.params.targetid+'\',\''+req.params.myid+'\')';
+			conn.query('INSERT INTO XIM_FRIENDSHIP(USERID_1,USERID_2) VALUES'+_values, function(err, rows, fields){
+				conn.release();
+				if(err){
+					console.log(err);
+					res.send(500, err);
+				}
+
+				var _message = {
+							action: 'foperation',
+							msg: {
+								to_user_id: req.params.targetid,
+    							from_user_id: req.params.myid,
+    							operation: 'agree',
+    							message: '',
+    							timestamp: new Date().toJSON().replace('T', ' ').substr(0, 19)
+							}
+						}
+				res.send(_message);
+			});
+	});
 };
+
+
 function del_friend(req, res, next){
+	if(!req.params.myid || !req.params.targetid){
+		res.send(500, 'error paramters');
+	}
 
-};
-function del_group(req, res, next){
+	var id1=req.params.myid;
+	var id2=req.params.targetid;
+	mysql_conn.getConnection(function(err,conn){
+		conn.query('DELETE FROM XIM_FRIENDSHIP WHERE (USERID_1=? AND USERID_2=?) OR (USERID_1=? AND USERID_2=?)', 
+		[id1, id2, id2, id1], function(err,rows,fields){
 
+		conn.release();
+		if(err){
+			console.log(err);
+			res.send(500, err);
+		}
+		
+		var _message = {
+							action: 'foperation',
+							msg: {
+								to_user_id: req.params.targetid,
+    							from_user_id: req.params.myid,
+    							operation: 'delete',
+    							message: '',
+    							timestamp: new Date().toJSON().replace('T', ' ').substr(0, 19)
+							}
+						}
+
+		res.send(_message);
+
+		});
+	});
 };
+
+
+
+
 function get_group(req, res, next){
 
 };
+
 function put_group(req, res, next){
 
 };
@@ -353,7 +476,7 @@ var server = restify.createServer({name: settings.api.name});
 server.use(restify.CORS());
 server.use(restify.bodyParser());
 server.use(function(req, res, next){
-	console.log(req.url+','+JSON.stringify(req.params));
+	console.log('['+req.method+']'+req.url+','+JSON.stringify(req.params));
 	next()
 });
 server.post('/api/v1/upload', file_upload);

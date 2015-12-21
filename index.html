@@ -176,18 +176,18 @@ $(document).ready(function(){
                 }
 
 
-                if(_msg.action=='operation'){
+                if(_msg.action=='foperation'){
 
                     switch(_msg.msg.operation){
-                        case 'friend-add-request':
-                            var r=confirm(_msg.msg.user_id +" is requesting you as friend ?");
+                        case 'request':
+                            var r=confirm(_msg.msg.from_user_id +" is requesting you as friend ?");
                             var msg={
-                                    action:'operation',
+                                    action:'foperation',
                                     msg:{
-                                            user_id: user.ID+'',
-                                            operation: 'friend-add-agree',
+                                            from_user_id: _msg.msg.to_user_id+'',
+                                            to_user_id:_msg.msg.from_user_id+'',
+                                            operation: 'agree',
                                             message: {
-                                                target_user_id: _msg.msg.user_id+'',
                                                 attach_message: ''
                                             },
                                             timestamp: new Date().toJSON().replace('T', ' ').substr(0, 19)
@@ -198,12 +198,11 @@ $(document).ready(function(){
                             }
                             else
                             {
-                                msg.msg.operation='friend-add-reject';
+                                msg.msg.operation='reject';
                                 console.log('reject to add');
                             }
  
                             socket.send(JSON.stringify(msg));
-                            console.log(JSON.stringify(msg));
                         break;
                     }
                 }
@@ -218,12 +217,12 @@ $(document).ready(function(){
 
             $('#add').click(function(){
                 var msg={
-                action:'operation',
+                action:'foperation',
                 msg:{
-                        user_id: user.ID,
-                        operation: 'friend-add-request',
+                        from_user_id: user.ID,
+                        to_user_id:$('#uid').val()+'',
+                        operation: 'request',
                         message: {
-                            target_user_id: $('#uid').val()+'',
                             attach_message: $('#umessage').val()
                         },
                         timestamp: new Date().toJSON().replace('T', ' ').substr(0, 19)

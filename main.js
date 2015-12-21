@@ -45,7 +45,7 @@ io.on('connection', function(socket){
 		/** message format
 		*	
 		*	{
-		*		action: 	, 	// init, state-notify, operation-notify, message, gmessage, operation
+		*		action: 	, 	// init, state-notify, message, gmessage, foperation
 		*		msg: {}
 		*		
 		*	}
@@ -118,15 +118,16 @@ io.on('connection', function(socket){
 			/** msg format
 			*	
 			*	{
-			*		user_id: 		,
-			*		operation: 		,	// friend-add-request, friend-add-reject, friend-add-agree, friend-delete
-			*		message: 		,	// {target_user_id:, attach_message:}   
+			*		to_user_id: 	,
+			*		from_user_id: 	,
+			*		operation: 		,	// request, reject, agree, delete
+			*		message: 		,	// {attach_message:}   
 			*		timestamp: 			
 			*	}
 			*
 			*/
-			case 'operation':
-				server_model.process_operation(d);
+			case 'foperation':
+				server_model.process_foperation(d);
 			break;
 
 		}

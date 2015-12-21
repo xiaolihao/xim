@@ -78,9 +78,24 @@ var client_model = backbone.Model.extend({
 		gs[0].emit_message(gmessage);
 	},
 
+	add_group: function(g){
+		var groups = self.get('groups');
+    	var gs=groups.where({group_id: g.group_id+''});
+
+    	if(gs.length==0)
+    		groups.add(g);
+	},
+
+	del_group: function(gid){
+		var groups = self.get('groups').remove({group_id: gid+''});
+	},
+
 	add_friend: function(fid){
-		this.get('friends')[fid]='on';
-		shared.logger.info('add '+fid);
+		if(!(fid in this.get('friends'))){
+			this.get('friends')[fid]='on';
+			shared.logger.info('add '+fid);
+		}
+		
 	},
 
 	del_friend: function(fid){
@@ -303,12 +318,45 @@ var client_model = backbone.Model.extend({
 	},/*initialize*/
 
 
+	update_info: function(message){
+		switch(message.action){
+			case 'foperation':
+				switch(message.msg.operation){
+					case 'agree':
+						self.add_friend(message.msg.from_user_id+'');
+					break;
+
+					case 'delete':
+						self.del_friend(message.msg.from_user_id+'');
+					break;
+				}
+			break;
+
+			case 'goperation':
+				switch(message.msg.operation){
+					case 'create':
+
+					break;
+					case 'delete':
+						self.del_group(message.msg.group_id);
+					break;
+
+					case 'in':
+
+					break;
+					case 'out':
+					break;
+				}
+			break;
+		}
+	},
 
 	write_message: function (message) {
 		var self = this;
 		var socket = this.get('socket');
 	    if(socket){
 	    	socket.write(JSON.stringify(message));
+	    	self.update_info(message);
 	     }
     },
 
@@ -447,17 +495,6 @@ var server_model = backbone.Model.extend({
 		else{
 			_.each(cs, function(v){
 				v.write_message(message);
-
-				if(message.action=='operation-notify'){
-
-						if(message.msg.message_type=='friend-add')
-							v.add_friend(message.msg.from_user_id);
-						
-						
-						else if(message.msg.message_type=='friend-delete')
-							v.del_friend(message.msg.from_user_id);
-				}
-
 				shared.logger.info('[write]'+JSON.stringify(message));
 
 			});
@@ -537,117 +574,66 @@ var server_model = backbone.Model.extend({
 		}
 	},
 
-	process_operation: function(message){
+
+	process_foperation: function(message){
 		switch(message.msg.operation){
 
-			case 'friend-add-request':
-				server_model.emit_message(message.msg.message.target_user_id, message, true);
-			break;
-			
-			
-			case 'friend-add-reject':
-				// send reject message back to request user
-				// target_user_id is user sending add-request
-				server_model.emit_message(message.msg.message.target_user_id, message, true);
-			break;
-			
-			case 'friend-add-agree':
-				async.waterfall([
-						// check if being friend already
-						function(callback){
-							shared.mysql_conn.getConnection(function(err,conn){
-        						conn.query('SELECT ID FROM XIM_FRIENDSHIP WHERE USERID_1=? AND USERID_2=?', 
-        						[message.msg.user_id, message.msg.message.target_user_id], function(err,rows,fields){
+			case 'request':
+			case 'reject':
+				server_model.emit_message(message.msg.to_user_id, message, true);
+				break;
 
-        						if(err){
-        							shared.logger.info(err);
-        							conn.release();
-        							callback(-1);
-        							return;
-        						}
-        						if(rows.length > 0){
-        							conn.release();
-        							callback(1);
-        						}
-        						else
-        							callback(null, conn);
-        						});
-          					});
-						},
-
-						function(conn, callback){
-							var _values='(\''+message.msg.user_id+'\',\''+message.msg.message.target_user_id+'\')'+','+
-										'(\''+message.msg.message.target_user_id+'\',\''+message.msg.user_id+'\')';
-							conn.query('INSERT INTO XIM_FRIENDSHIP(USERID_1,USERID_2) VALUES'+_values, function(err, rows, fields){
-								conn.release();
-								if(err){
-        							shared.logger.info(err);
-        							callback(-1);
-        							return;
-        						}
-
-        						callback(1)
-							});
-						}
-
-					], 
-
-					function(err, results){
-						if(err==1){
-							var _message = {
-        								action: 'operation-notify',
-        								msg: {
-        									to_user_id: message.msg.message.target_user_id,
-                							from_user_id: message.msg.user_id,
-                							message_type: 'friend-add',
-        								}
-        							}
-
-        					server_model.write_message(message.msg.message.target_user_id, _message, true);
-        						
-        					_message.msg.to_user_id=message.msg.user_id;
-        					_message.msg.from_user_id=message.msg.message.target_user_id;
-        					server_model.write_message(message.msg.user_id, _message, true);
-						}
+			case 'agree':
+				var clients = this.get('clients');
+				var cs = clients.where({user_id: message.msg.from_user_id+''});
+				_.each(cs, function(v){
+					v.add_friend(message.msg.to_user_id+'');
 				});
-				// send success message to both user
-			break;
-			
-			case 'friend-delete':
-				// write db
-				var id1=message.msg.user_id;
-				var id2=message.msg.message.target_user_id;
-				shared.mysql_conn.getConnection(function(err,conn){
-					conn.query('DELETE FROM XIM_FRIENDSHIP WHERE (USERID_1=? AND USERID_2=?) OR (USERID_1=? AND USERID_2=?)', 
-					[id1, id2, id2, id1], function(err,rows,fields){
+				server_model.emit_message(message.msg.to_user_id, message, true);
 
-					conn.release();
-					if(err){
-						shared.logger.info(err);
+			break;
+			case 'delete':
+				var clients = this.get('clients');
+				var cs = clients.where({user_id: message.msg.from_user_id+''});
+				_.each(cs, function(v){
+					v.del_friend(message.msg.to_user_id+'');
+				});
+				server_model.emit_message(message.msg.to_user_id, message, true);
+			break;
+		}
+	},
+
+	process_goperation: function(message){
+		switch(message.msg.operation){
+			case 'delete':
+				_.each(message.msg.members, function(v){
+					if(v==message.msg.owner_id){
+						var clients = this.get('clients');
+						var cs = clients.where({user_id: v+''});
+						_.each(cs, function(v){
+							v.del_group(message.msg.group_id+'');
+						});
+
 						return;
 					}
-					
-					var _message = {
-        								action: 'operation-notify',
-        								msg: {
-        									to_user_id: message.msg.message.target_user_id,
-                							from_user_id: message.msg.user_id,
-                							message_type: 'friend-delete',
-        								}
-        							}
 
-        			server_model.write_message(message.msg.message.target_user_id, _message, true);
-        						
-        			_message.msg.to_user_id=message.msg.user_id;
-        			_message.msg.from_user_id=message.msg.message.target_user_id;
-        			server_model.write_message(message.msg.user_id, _message, true);
+					var _message={
+						action: 'goperation',
+						msg:{
+							to_user_id: v,
+							from_user_id: message.msg.owner_id,
+							group_id: message.msg.group_id,
+							operation: message.msg.operation,
+							message: '',
+							timestamp: message.msg.timestamp
+						}
+					};
 
-					});
+					server_model.emit_message(v, _message, true);
 				});
 			break;
 		}
 	}
-
 });
 
 
