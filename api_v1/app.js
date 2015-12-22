@@ -301,44 +301,15 @@ function del_group(req, res, next){
 	}
 
 
-	async.series([
-
-		function(callback){
-			mysql_conn.getConnection(function(err,conn){
-				conn.query('SELECT USERID FROM XIM_GROUP_MEMBER WHERE GROUPID=?', 
-				req.params.gid, function(err,rows,fields){
-					conn.release();
-					
-					if(err){
-						console.log(err);
-						callback(err)
-					}
-
-					else
-						callback(null, rows);
-				})
-			});
-		},
-		function(callback){
-			mysql_conn.getConnection(function(err,conn){
-				conn.query('DELETE A,B FROM XIM_GROUP A, XIM_GROUP_MEMBER B WHERE A.ID=? AND A.OWNER=? AND A.ID=B.GROUPID;', 
-				[req.params.gid, req.params.ownerid], function(err,rows,fields){
-					conn.release();
-					
-					if(err){
-						console.log(err);
-						callback(err);
-					}
-
-					callback(null);
-				})
-			});
-		}
-
-		],
-		function(err, results){
-			if(err)
+	mysql_conn.getConnection(function(err,conn){
+		conn.query('DELETE A,B FROM XIM_GROUP A, XIM_GROUP_MEMBER B WHERE A.ID=? AND A.OWNER=? AND A.ID=B.GROUPID;', 
+		[req.params.gid, req.params.ownerid], function(err,rows,fields){
+			conn.release();
+			
+			if(err){
+				console.log(err);
 				res.send(500, err);
+			}
 
 			var _message={
 				action: 'goperation',
@@ -346,14 +317,13 @@ function del_group(req, res, next){
 					owner_id: req.params.ownerid,
 					operation: 'delete',
 					group_id: req.params.gid,
-					members:results[0],
 					timestamp: new Date().toJSON().replace('T', ' ').substr(0, 19)
 				}
 
 			}
 			res.send(_message);
-		}
-	);
+		})
+	});
 	
 };
 
@@ -414,7 +384,7 @@ function create_friend(req, res, next){
 							msg: {
 								to_user_id: req.params.targetid,
     							from_user_id: req.params.myid,
-    							operation: 'agree',
+    							operation: 'add',
     							message: '',
     							timestamp: new Date().toJSON().replace('T', ' ').substr(0, 19)
 							}
@@ -467,6 +437,49 @@ function get_group(req, res, next){
 };
 
 function put_group(req, res, next){
+	// in/out
+	if(!req.params.type||!req.params.gid)
+		res.send(500, 'error paramters');
+
+	switch(req.params.type){
+		case 'in':
+			if(!req.params.uid)
+				res.send(500, 'error paramters');
+
+			mysql_conn.getConnection(function(err,conn){
+				conn.query('INSERT INTO XIM_GROUP_MEMBER SET ?', 
+				{GROUPID: req.params.gid, USERID: req.params.uid}, function(err,rows,fields){
+					conn.release();
+					if(err){
+						console.log(err);
+						res.send(500, err);
+					}
+
+					else
+						res.send(rows);
+				})
+			});
+		break;
+
+		case 'out':
+			if(!req.params.uid)
+				res.send(500, 'error paramters');
+
+			mysql_conn.getConnection(function(err,conn){
+				conn.query('DELETE FROM XIM_GROUP_MEMBER WHERE GROUPID=? AND USERID=?', 
+				[req.params.gid, req.params.uid], function(err,rows,fields){
+					conn.release();
+					if(err){
+						console.log(err);
+						res.send(500, err);
+					}
+
+					else
+						res.send(rows);
+				})
+			});
+		break;
+	}
 
 };
 

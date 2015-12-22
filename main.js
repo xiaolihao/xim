@@ -120,7 +120,7 @@ io.on('connection', function(socket){
 			*	{
 			*		to_user_id: 	,
 			*		from_user_id: 	,
-			*		operation: 		,	// request, reject, agree, delete
+			*		operation: 		,	// request, reject, add, delete
 			*		message: 		,	// {attach_message:}   
 			*		timestamp: 			
 			*	}
@@ -129,6 +129,23 @@ io.on('connection', function(socket){
 			case 'foperation':
 				server_model.process_foperation(d);
 			break;
+
+
+			/** msg format
+			*	
+			*	{
+			*		to_user_id: 	,
+			*		from_user_id: 	,
+			*		group_id: 		,
+			*		operation: 		,	// request, reject, add, delete
+			*		message: 		,	// {attach_message:}   
+			*		timestamp: 			
+			*	}
+			*
+			*/
+			case 'goperation':
+				server_model.process_goperation(d);
+			break; 
 
 		}
 

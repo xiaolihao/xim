@@ -366,6 +366,8 @@ var client_model = backbone.Model.extend({
 		var self = this;
 
 		this.set('socket', null);
+		this.get('groups').reset();
+		this.set('groups', null);
 
 		// check if other clients login in same node
 		var cs = server_model.get('clients').where({user_id: uid});
@@ -583,7 +585,7 @@ var server_model = backbone.Model.extend({
 				server_model.emit_message(message.msg.to_user_id, message, true);
 				break;
 
-			case 'agree':
+			case 'add':
 				var clients = this.get('clients');
 				var cs = clients.where({user_id: message.msg.from_user_id+''});
 				_.each(cs, function(v){
@@ -606,32 +608,46 @@ var server_model = backbone.Model.extend({
 	process_goperation: function(message){
 		switch(message.msg.operation){
 			case 'delete':
-				_.each(message.msg.members, function(v){
-					if(v==message.msg.owner_id){
-						var clients = this.get('clients');
-						var cs = clients.where({user_id: v+''});
-						_.each(cs, function(v){
-							v.del_group(message.msg.group_id+'');
+				var clients = this.get('clients');
+				var cs = clients.where({user_id: message.msg.owner_id+''});
+				if(cs.length > 0){
+					_.each(cs, function(v){
+						v.del_group(message.msg.group_id+'');
+					});
+
+					var gc=cs[0].get('groups');
+
+					var gs=gc.where({group_id: message.msg.group_id+''});
+					if(gs.length > 0){
+
+						_.each(gs[0].get('members'), function(k, v){
+							if(k==message.msg.owner_id)
+								return;
+
+							var _message={
+							action: 'goperation',
+							msg:{
+									to_user_id: k,
+									from_user_id: message.msg.owner_id,
+									group_id: message.msg.group_id,
+									operation: message.msg.operation,
+									message: '',
+									timestamp: message.msg.timestamp
+								}
+							};
+
+							server_model.emit_message(v, _message, true);
 						});
-
-						return;
 					}
-
-					var _message={
-						action: 'goperation',
-						msg:{
-							to_user_id: v,
-							from_user_id: message.msg.owner_id,
-							group_id: message.msg.group_id,
-							operation: message.msg.operation,
-							message: '',
-							timestamp: message.msg.timestamp
-						}
-					};
-
-					server_model.emit_message(v, _message, true);
-				});
+				}
 			break;
+
+			case 'request':
+			case 'reject':
+				server_model.emit_message(message.msg.to_user_id, message, true);
+			break;
+
+			case ''
 		}
 	}
 });
