@@ -438,7 +438,7 @@ function get_group(req, res, next){
 
 function put_group(req, res, next){
 	// in/out
-	if(!req.params.type||!req.params.gid)
+	if(!req.params.type||!req.params.gid||!req.params.ownerid)
 		res.send(500, 'error paramters');
 
 	switch(req.params.type){
@@ -455,8 +455,19 @@ function put_group(req, res, next){
 						res.send(500, err);
 					}
 
-					else
-						res.send(rows);
+					else{
+						var _message={
+							action: 'goperation',
+							msg:{
+								owner_id: req.params.ownerid,
+								user_id: req.params.uid,
+								operation: 'in',
+								group_id: req.params.gid,
+								timestamp: new Date().toJSON().replace('T', ' ').substr(0, 19) 
+							}
+						}
+						res.send(_message);
+					}
 				})
 			});
 		break;
@@ -474,8 +485,19 @@ function put_group(req, res, next){
 						res.send(500, err);
 					}
 
-					else
-						res.send(rows);
+					else{
+						var _message={
+							action: 'goperation',
+							msg:{
+								owner_id: req.params.ownerid,
+								user_id: req.params.uid,
+								operation: 'out',
+								group_id: req.params.gid,
+								timestamp: new Date().toJSON().replace('T', ' ').substr(0, 19) 
+							}
+						}
+						res.send(_message);
+					}
 				})
 			});
 		break;

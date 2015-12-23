@@ -74,7 +74,7 @@ font-family:'Raleway',sans-serif
 </div>
 <!-- Popup Div Ends Here -->
 
-<form id="myForm" action="http://127.0.0.1:9018/api/v1/upload" method="post" enctype="multipart/form-data">
+<form id="myForm" action="http://192.168.1.100:9018/api/v1/upload" method="post" enctype="multipart/form-data">
      <input type="file" size="60" name="myfile">
      <input type="submit" value="Ajax File Upload">
  </form>
@@ -107,7 +107,14 @@ font-family:'Raleway',sans-serif
 
 <div>
 <input  id="gm" autocomplete="off" />
-<button id="gbtn">Send</button>
+<button id="gbtn">GSend</button>
+</div>
+
+<div>
+<input  id="gput" autocomplete="off" />
+<button id="gputbtn">GPut</button>
+<button id="gdelbtn">GPut</button>
+
 </div>
 
 <script>
@@ -181,28 +188,44 @@ $(document).ready(function(){
                     switch(_msg.msg.operation){
                         case 'request':
                             var r=confirm(_msg.msg.from_user_id +" is requesting you as friend ?");
-                            var msg={
+                            
+                            if(r==true){
+                                $.ajax({
+                                    url:'http://127.0.0.1:9018/api/v1/friend',
+                                    type:'post',
+                                    cache:'false',
+                                    dataType:'json',
+                                    data:{  
+                                         myid : user.ID,  
+                                         targetid: _msg.msg.from_user_id  
+                                    },  
+                                    success:function(d){
+                                        socket.send(JSON.stringify(d));
+                                        console.log(d);
+                                    },
+                                    error:function(err){
+                                        console.log(err);
+                                    }
+                                });
+                            }
+                            else
+                            {
+                                var msg={
                                     action:'foperation',
                                     msg:{
                                             from_user_id: _msg.msg.to_user_id+'',
                                             to_user_id:_msg.msg.from_user_id+'',
-                                            operation: 'add',
+                                            operation: 'reject',
                                             message: {
                                                 attach_message: ''
                                             },
                                             timestamp: new Date().toJSON().replace('T', ' ').substr(0, 19)
                                         }
                                     };
-                            if(r==true){
-                                console.log('agree to add');
-                            }
-                            else
-                            {
-                                msg.msg.operation='reject';
-                                console.log('reject to add');
+                                socket.send(JSON.stringify(msg));
                             }
  
-                            socket.send(JSON.stringify(msg));
+                            
                         break;
                     }
                 }
@@ -242,20 +265,24 @@ $(document).ready(function(){
                     return;
                 }
 
-                var msg={
-                action:'operation',
-                msg:{
-                        user_id: user.ID+'',
-                        operation: 'friend-delete',
-                        message: {
-                            target_user_id: to_user_id+'',
-                            attach_message: ''
-                        },
-                        timestamp: new Date().toJSON().replace('T', ' ').substr(0, 19)
+                $.ajax({
+                    url:'http://127.0.0.1:9018/api/v1/friend',
+                    type:'delete',
+                    cache:'false',
+                    dataType:'json',
+                    data:{  
+                         myid : user.ID,  
+                         targetid: to_user_id  
+                    },  
+                    success:function(d){
+                        socket.send(JSON.stringify(d));
+                        console.log(d);
+                    },
+                    error:function(err){
+                        console.log(err);
                     }
-                };
-                socket.send(JSON.stringify(msg));
-                $('#m').val('');
+                });
+                
             });
 
 
@@ -278,6 +305,69 @@ $(document).ready(function(){
                 }
                 socket.send(JSON.stringify(msg));
                 $('#m').val('');
+            });
+
+
+            $('#gputbtn').click(function(){
+                var group_id=$(".group_list li.choosed").attr("id");
+
+                if(!group_id){
+                    alert('select a group!');
+                    return;
+                }
+
+                $.ajax({
+                    url:'http://127.0.0.1:9018/api/v1/group',
+                    type:'put',
+                    cache:'false',
+                    dataType:'json',
+                    data:{  
+                         type: 'in',
+                         ownerid : user.ID,  
+                         gid: group_id,
+                         uid: $('#gput').val()  
+                    },  
+                    success:function(d){
+                        socket.send(JSON.stringify(d));
+                        console.log(d);
+                    },
+                    error:function(err){
+                        console.log(err);
+                    }
+                });
+
+        
+            });
+
+            $('#gdelbtn').click(function(){
+                var group_id=$(".group_list li.choosed").attr("id");
+
+                if(!group_id){
+                    alert('select a group!');
+                    return;
+                }
+
+                $.ajax({
+                    url:'http://127.0.0.1:9018/api/v1/group',
+                    type:'put',
+                    cache:'false',
+                    dataType:'json',
+                    data:{  
+                         type: 'out',
+                         ownerid : user.ID,  
+                         gid: group_id,
+                         uid: $('#gput').val()  
+                    },  
+                    success:function(d){
+                        socket.send(JSON.stringify(d));
+                        console.log(d);
+                    },
+                    error:function(err){
+                        console.log(err);
+                    }
+                });
+
+        
             });
 
 

@@ -79,28 +79,114 @@ var client_model = backbone.Model.extend({
 	},
 
 	add_group: function(g){
-		var groups = self.get('groups');
+		var groups = this.get('groups');
     	var gs=groups.where({group_id: g.group_id+''});
 
     	if(gs.length==0)
     		groups.add(g);
 	},
 
+	in_group: function(gid, uid){
+		var groups = this.get('groups');
+    	var gs=groups.where({group_id: gid+''});
+    	var self=this;
+
+    	if(gs.length >0 ){
+    		gs[0].get('members')[uid+'']='GROUP_NAME';
+    	}
+
+    	/* reload group info */
+    	else{
+    		async.parallel(
+    			[
+    			function(callback){
+    				shared.mysql_conn.getConnection(function(err,conn){
+                		conn.query('SELECT NAME, OWNER FROM XIM_GROUP WHERE ID=?',
+                			gid, 
+                			function(err, rows, fields){
+                				conn.release();
+                				if(err){
+                					shared.logger.info(err);
+                					callback(err);
+                				}
+
+                				callback(null, rows);
+                			});
+                	});
+    			},
+    			function(callback){
+    				shared.mysql_conn.getConnection(function(err,conn){
+                		conn.query('SELECT USERID FROM XIM_GROUP_MEMBER WHERE GROUPID=?',
+                			gid, 
+                			function(err, rows, fields){
+                				conn.release();
+                				if(err){
+                					shared.logger.info(err);
+                					callback(err);
+                				}
+
+                				callback(null, rows);
+                			});
+                	});
+    			}
+    			],
+    			function(err, results){
+    				if(err)
+    					return;
+
+    				console.log(JSON.stringify(results));
+
+    				var g=new group_model({
+                    			'group_id': gid+'',
+                    			'owner': results[0][0].OWNER+'',
+                    			'name': results[0][0].NAME
+                    	});
+
+    				_.each(results[1], function(v){
+    					g.get('members')[v.USERID]='GROUP_NAME';
+    				});
+    				
+    				self.get('groups').add(g);
+    			}
+    			);
+    	}
+
+
+	},
+	
+	out_group: function(gid, uid){
+		var groups = this.get('groups');
+    	var gs=groups.where({group_id: gid+''});
+
+    	if(gs.length >0 ){
+    		if(uid==this.get('user_id')){
+    			this.get('groups').remove(gs[0]);
+    		}
+    		else
+    			delete gs[0].get('members')[uid+''];
+    	}
+
+    	shared.logger.info(this.get('user_id')+' out['+gid+']'+uid+','+JSON.stringify(this.get('groups')));
+	},
+
 	del_group: function(gid){
-		var groups = self.get('groups').remove({group_id: gid+''});
+		var groups = this.get('groups');
+    	var gs=groups.where({group_id: gid+''});
+
+		var groups = this.get('groups').remove(gs[0]);
 	},
 
 	add_friend: function(fid){
 		if(!(fid in this.get('friends'))){
 			this.get('friends')[fid]='on';
-			shared.logger.info('add '+fid);
+			shared.logger.info('add '+fid+','+JSON.stringify(this.get('friends')));
 		}
 		
 	},
 
 	del_friend: function(fid){
 		delete this.get('friends')[fid];
-		shared.logger.info('del '+fid);
+		shared.logger.info('del '+fid+','+JSON.stringify(this.get('friends')));
 	},
 
 	write_redis_info: function(){
@@ -179,11 +265,11 @@ var client_model = backbone.Model.extend({
                     	else
                     		g=gs[0];
 
-                    	g.get('members')[v.USERID]=v.GROUP_NAME;
+                    	g.get('members')[v.USERID]='GROUP_NAME';
                     	
                     });
 
-                    console.log(JSON.stringify(groups));
+                    shared.logger.info(JSON.stringify(groups));
                 });
             });
 	},
@@ -319,10 +405,11 @@ var client_model = backbone.Model.extend({
 
 
 	update_info: function(message){
+		var self=this;
 		switch(message.action){
 			case 'foperation':
 				switch(message.msg.operation){
-					case 'agree':
+					case 'add':
 						self.add_friend(message.msg.from_user_id+'');
 					break;
 
@@ -330,21 +417,24 @@ var client_model = backbone.Model.extend({
 						self.del_friend(message.msg.from_user_id+'');
 					break;
 				}
+
 			break;
 
 			case 'goperation':
 				switch(message.msg.operation){
 					case 'create':
-
 					break;
+
 					case 'delete':
 						self.del_group(message.msg.group_id);
 					break;
 
 					case 'in':
-
+						self.in_group(message.msg.group_id, message.msg.from_user_id);
 					break;
+
 					case 'out':
+						self.out_group(message.msg.group_id, message.msg.from_user_id);
 					break;
 				}
 			break;
@@ -355,8 +445,8 @@ var client_model = backbone.Model.extend({
 		var self = this;
 		var socket = this.get('socket');
 	    if(socket){
-	    	socket.write(JSON.stringify(message));
 	    	self.update_info(message);
+	    	socket.write(JSON.stringify(message));
 	     }
     },
 
@@ -611,34 +701,34 @@ var server_model = backbone.Model.extend({
 				var clients = this.get('clients');
 				var cs = clients.where({user_id: message.msg.owner_id+''});
 				if(cs.length > 0){
-					_.each(cs, function(v){
-						v.del_group(message.msg.group_id+'');
-					});
-
 					var gc=cs[0].get('groups');
 
 					var gs=gc.where({group_id: message.msg.group_id+''});
 					if(gs.length > 0){
 
-						_.each(gs[0].get('members'), function(k, v){
+						_.each(gs[0].get('members'), function(v, k){
 							if(k==message.msg.owner_id)
 								return;
 
 							var _message={
-							action: 'goperation',
-							msg:{
-									to_user_id: k,
-									from_user_id: message.msg.owner_id,
-									group_id: message.msg.group_id,
-									operation: message.msg.operation,
-									message: '',
-									timestamp: message.msg.timestamp
-								}
+								action: 'goperation',
+								msg:{
+										to_user_id: k,
+										from_user_id: message.msg.owner_id,
+										group_id: message.msg.group_id,
+										operation: message.msg.operation,
+										message: '',
+										timestamp: message.msg.timestamp
+									}
 							};
 
-							server_model.emit_message(v, _message, true);
+							server_model.emit_message(k, _message, true);
 						});
 					}
+
+					_.each(cs, function(v){
+						v.del_group(message.msg.group_id+'');
+					});
 				}
 			break;
 
@@ -647,7 +737,74 @@ var server_model = backbone.Model.extend({
 				server_model.emit_message(message.msg.to_user_id, message, true);
 			break;
 
-			case ''
+			case 'in':
+				var clients = this.get('clients');
+				var cs = clients.where({user_id: message.msg.owner_id+''});
+				if(cs.length > 0){
+
+					_.each(cs, function(v){
+						v.in_group(message.msg.group_id, message.msg.user_id);
+					});
+
+					var gc=cs[0].get('groups');
+					var gs=gc.where({group_id: message.msg.group_id+''});
+					if(gs.length > 0){
+
+						_.each(gs[0].get('members'), function(v, k){
+							if(k==message.msg.owner_id)
+								return;
+
+							var _message={
+								action: 'goperation',
+								msg:{
+										to_user_id: k,
+										from_user_id: message.msg.user_id,
+										group_id: message.msg.group_id,
+										operation: message.msg.operation,
+										message: '',
+										timestamp: message.msg.timestamp
+									}
+							};
+
+							server_model.emit_message(k, _message, true);
+						});
+					}
+				}
+			break;
+
+			case 'out':
+				var clients = this.get('clients');
+				var cs = clients.where({user_id: message.msg.owner_id+''});
+				if(cs.length > 0){			
+					var gc=cs[0].get('groups');
+					var gs=gc.where({group_id: message.msg.group_id+''});
+					if(gs.length > 0){
+
+						_.each(gs[0].get('members'), function(v, k){
+							if(k==message.msg.owner_id)
+								return;
+
+							var _message={
+								action: 'goperation',
+								msg:{
+										to_user_id: k,
+										from_user_id: message.msg.user_id,
+										group_id: message.msg.group_id,
+										operation: message.msg.operation,
+										message: '',
+										timestamp: message.msg.timestamp
+									}
+							};
+
+							server_model.emit_message(k, _message, true);
+						});
+					}
+
+					_.each(cs, function(v){
+						v.out_group(message.msg.group_id, message.msg.user_id);
+					});
+				}
+			break;
 		}
 	}
 });
