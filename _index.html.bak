@@ -112,8 +112,8 @@ font-family:'Raleway',sans-serif
 
 <div>
 <input  id="gput" autocomplete="off" />
-<button id="gputbtn">GPut</button>
-<button id="gdelbtn">GPut</button>
+<button id="gputbtn">GAdd</button>
+<button id="gdelbtn">GDel</button>
 
 </div>
 

@@ -149,6 +149,7 @@ function login(req, res, next){
 				update_login(me.ID, req);
 				me.FRIENDS=friends;
 				me.GROUPS=groups;
+				console.log(me);
 				res.send(200, me);
 			}
 
@@ -531,6 +532,23 @@ server.del('/api/v1/group', del_group);
 server.get('/api/v1/group/:id', get_group);
 server.put('/api/v1/group', put_group);
 
+
+server.get(/^\/(js|css|template)\/?.*$/, restify.serveStatic({
+  directory: __dirname
+}));
+
+server.get('/', function(req, res, next){
+	fs.readFile(__dirname + '/index.html',
+		function (err, data) {
+		    if (err){
+				res.writeHead(500);
+				return res.end('fail to load index.html');
+		    }
+
+		    res.writeHead(200);
+		    res.end(data);
+		});
+});
 
 server.listen(settings.api.port, function() {
   console.log('%s listening at %s', server.name, server.url);
