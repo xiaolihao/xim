@@ -1,11 +1,14 @@
 var socket = null;
+var user = null;
 
-function init_socket(user, vue){
+function init_socket(u, vue){
+    user=u;
 
+    console.log(u);
 	socket.onopen = function(){
         socket.send(JSON.stringify({
         	action:'init',
-                msg:{user_id:user.ID+''}
+                msg:{user_id:u.ID+''}
         }));
 	};
 
@@ -44,7 +47,7 @@ Vue.component('login-component', function(resolve, reject) {
 
 			  		socket=new SockJS('http://127.0.0.1:9019/xim/chat');
 			  		init_socket(res.data, this);
-			        this.$parent.unlogin=false;
+			        this.$parent.login=true;
 			      }, function(error) {
 			        this.username='';
 			        this.password='';
@@ -64,11 +67,42 @@ Vue.component('login-component', function(resolve, reject) {
 });
 
 
+Vue.component('chat-component', function(resolve, reject) {
+    Vue.http.get('/template/chat.html').then(function(res){
+        var parser = new DOMParser();
+        var doc = parser.parseFromString(res.data, "text/html").body.innerHTML.trim();
+        resolve({
+        	data:function(){
+        		return {
+                    id: user.ID,
+                    nick_name: user.NICK_NAME,
+                    friends: user.FRIENDS,
+                    groups: user.GROUPS
+			    }
+        	},
+			ready:function(){
+			  	
+			},
+
+			methods:{
+			
+			},
+
+            template: doc
+        });
+    },
+    function(err){
+    	reject(err);
+    }
+    );
+});
+
+
 var main = new Vue({
   el:'body',
   data:function(){
   	return {
-  		unlogin: true
+  		login: false
   	}
   },
 

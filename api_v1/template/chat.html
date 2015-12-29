@@ -1,0 +1,21 @@
+<section class="main-box row-fluid">
+	<h3>{{ nick_name }}[{{ id }}]</h3>
+	<ul class="nav nav-tabs" role="tablist">
+	  <li class="active"><a href="#friend" role="tab" data-toggle="tab">Friend</a></li>
+	  <li><a href="#group" role="tab" data-toggle="tab">Group</a></li>
+	</ul>
+
+	<!-- Tab panes -->
+	<div class="tab-content">
+	  <div class="tab-pane active" id="friend">
+	  	<li v-for="friend in friends">
+    		{{ friend.NICK_NAME }}
+  		</li>
+	  </div>
+	  <div class="tab-pane" id="group">
+  		<li v-for="group in groups">
+			{{ group.NAME }}
+		</li>
+	  </div>
+	</div>
+</section>
