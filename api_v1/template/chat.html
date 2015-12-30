@@ -1,21 +1,46 @@
 <section class="main-box row-fluid">
-	<h3>{{ nick_name }}[{{ id }}]</h3>
-	<ul class="nav nav-tabs" role="tablist">
-	  <li class="active"><a href="#friend" role="tab" data-toggle="tab">Friend</a></li>
-	  <li><a href="#group" role="tab" data-toggle="tab">Group</a></li>
-	</ul>
+	<section class="span7 left">
+		<h3>{{ nick_name }}[{{ id }}]</h3>
+		<ul class="nav nav-tabs" role="tablist">
+		  <li class="active"><a href="#friend" role="tab" data-toggle="tab">Friend</a></li>
+		  <li><a href="#group" role="tab" data-toggle="tab">Group</a></li>
+		</ul>
 
-	<!-- Tab panes -->
-	<div class="tab-content">
-	  <div class="tab-pane active" id="friend">
-	  	<li v-for="friend in friends">
-    		{{ friend.NICK_NAME }}
-  		</li>
-	  </div>
-	  <div class="tab-pane" id="group">
-  		<li v-for="group in groups">
-			{{ group.NAME }}
-		</li>
-	  </div>
-	</div>
+		<!-- Tab panes -->
+		<div class="tab-content">
+		  <div class="tab-pane active" id="friend">
+		  	<ul>
+			  	<li v-for="friend in friends" v-on:click="fclick" id="{{ friend.ID }}">
+			  		<a>
+			  			{{ friend.NICK_NAME }}[{{ friend.ID }}]
+			  		</a>
+		  		</li>
+	  		</ul>
+		  </div>
+		  <div class="tab-pane" id="group">
+		  	<ul>
+		  		<li v-for="group in groups">
+		  			<a>
+						{{ group.NAME }}
+					</a>
+				</li>
+			</ul>
+		  </div>
+		</div>
+	</section>
+	<section class="span5 right">
+		<div id="content">
+			<ul>
+				<li v-for="m in current_message" class="{{m.msg.from_user_id==id}}">
+					<p>
+					{{ m.msg.message }} , {{ m.msg.timestamp }}
+					</p>
+				</li>
+			</ul>
+		</div>    
+		<div class="input-area">
+            <textarea id="textarea" v-model="imessage"></textarea>
+        </div>
+        <button id="btn-send" v-on:click="send">发送</button>
+	</section>
 </section>

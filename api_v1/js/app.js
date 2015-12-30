@@ -1,10 +1,10 @@
 var socket = null;
 var user = null;
+var vue = null;
 
-function init_socket(u, vue){
+function init_socket(u){
     user=u;
 
-    console.log(u);
 	socket.onopen = function(){
         socket.send(JSON.stringify({
         	action:'init',
@@ -14,7 +14,18 @@ function init_socket(u, vue){
 
 	socket.onmessage = function(e){
         var msg=JSON.parse(e.data);
-        console.log(e.data);
+
+        switch(msg.action){
+            case 'message':
+                if(!vue.message[msg.msg.from_user_id])
+                    vue.message[msg.msg.from_user_id]=[];
+
+                vue.message[msg.msg.from_user_id].push(msg);
+            break;
+            case 'state-notify':
+            break;
+        }
+        
     };
 
     socket.onclose = function(){
@@ -46,7 +57,7 @@ Vue.component('login-component', function(resolve, reject) {
 			  		Cookies.set('password', this.password);
 
 			  		socket=new SockJS('http://127.0.0.1:9019/xim/chat');
-			  		init_socket(res.data, this);
+			  		init_socket(res.data);
 			        this.$parent.login=true;
 			      }, function(error) {
 			        this.username='';
@@ -77,15 +88,58 @@ Vue.component('chat-component', function(resolve, reject) {
                     id: user.ID,
                     nick_name: user.NICK_NAME,
                     friends: user.FRIENDS,
-                    groups: user.GROUPS
+                    groups: user.GROUPS,
+                    imessage:'',
+                    to_user_id: null,
+                    group_id: null,
+                    message: {},
+                    current_message:[]
 			    }
         	},
 			ready:function(){
-			  	
+			  	vue = this;
 			},
 
 			methods:{
-			
+                send: function(){
+                    if(!this.imessage){
+                        alert('发送内容不能为空!');
+                        return;
+                    }
+
+                    if(this.to_user_id){
+                        var msg={
+                            action:'message',
+                            msg:{
+                                    to_user_id: this.to_user_id+'',
+                                    from_user_id: this.id+'',
+                                    message_type: 'text',
+                                    message: this.imessage,
+                                    timestamp: new Date().toJSON().replace('T', ' ').substr(0, 19)
+                                }
+                        }
+                        socket.send(JSON.stringify(msg));
+                        this.imessage='';
+
+                        if(!this.message[this.to_user_id])
+                            this.message[this.to_user_id]=[];
+
+                        this.message[this.to_user_id].push(msg);
+                        this.current_message=this.message[this.to_user_id]
+                    }else if(this.group_id){
+
+                    }
+                    else{
+                        alert('先选择一个朋友或组!');
+                    }
+                },
+
+                fclick:function(event){
+                    this.group_id=null;
+                    this.to_user_id=event.path[1].id+'';
+
+                    this.current_message=this.message[this.to_user_id]||[];
+                }
 			},
 
             template: doc
