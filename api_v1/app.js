@@ -227,6 +227,7 @@ function file_upload(req, res, next){
 		break;
 	} 	
 
+	console.log(req.files);
 	var _file = req.files[namestr];
 	var path = _file.path;
 	

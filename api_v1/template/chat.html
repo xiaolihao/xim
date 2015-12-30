@@ -29,11 +29,13 @@
 		</div>
 	</section>
 	<section class="span5 right">
-		<div id="content">
+		<div id="content" v-el:content>
 			<ul>
 				<li v-for="m in current_message" class="{{m.msg.from_user_id==id}}">
 					<p>
-					{{ m.msg.message }} , {{ m.msg.timestamp }}
+						<span>{{ m.msg.from_user_id }}  {{ m.msg.timestamp }}</span>
+
+						<p>{{m.msg.message}}</p>
 					</p>
 				</li>
 			</ul>
@@ -41,6 +43,10 @@
 		<div class="input-area">
             <textarea id="textarea" v-model="imessage"></textarea>
         </div>
+        <form id="fform" action="/api/v1/upload" method="post" enctype="multipart/form-data" v-el:fform>
+     		<input type="file" size="60" id="file" name="file" v-el:file>
+ 		</form>
+
         <button id="btn-send" v-on:click="send">发送</button>
 	</section>
 </section>

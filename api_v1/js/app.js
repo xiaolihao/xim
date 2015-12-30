@@ -2,6 +2,8 @@ var socket = null;
 var user = null;
 var vue = null;
 
+
+
 function init_socket(u){
     user=u;
 
@@ -21,6 +23,8 @@ function init_socket(u){
                     vue.message[msg.msg.from_user_id]=[];
 
                 vue.message[msg.msg.from_user_id].push(msg);
+                var elem = vue.$els.content;
+                elem.scrollTop = elem.scrollHeight;
             break;
             case 'state-notify':
             break;
@@ -98,6 +102,61 @@ Vue.component('chat-component', function(resolve, reject) {
         	},
 			ready:function(){
 			  	vue = this;
+                var self=this;
+
+                var options = {
+                    beforeSend: function() 
+                    {
+                    },
+                    uploadProgress: function(event, position, total, percentComplete) 
+                    {
+                    },
+                    success: function() 
+                    {
+                    },
+                    complete: function(response) 
+                    {
+                        if(!self.to_user_id){
+                            alert('先选择一个朋友或组!');
+                            return;
+                        }
+
+                        var _msg=JSON.parse(response.responseText);
+                        var msg={
+                          action:'message',
+                          msg:{
+                            to_user_id: self.to_user_id+'',
+                            from_user_id: self.id+'',
+                            message_type: 'file',
+                            message: {
+                                file_type:_msg.file_type,
+                                file_length: _msg.file_length,
+                                file_name: _msg.file_name,
+                                url:_msg.url
+                            },
+                            timestamp:_msg.timestamp
+                          }
+                        }
+                        socket.send(JSON.stringify(msg));
+
+                        if(!self.message[self.to_user_id])
+                            self.message[self.to_user_id]=[];
+
+                        self.message[self.to_user_id].push(msg);
+                        self.current_message=self.message[self.to_user_id];
+
+                    },
+                    error: function(err)
+                    {
+                        console.log(err);
+                    }
+                }; 
+
+                $(self.$els.fform).ajaxForm(options);
+                this.$els.file.onchange = function(){
+                    $(self.$els.fform).submit();
+                };
+
 			},
 
 			methods:{
@@ -125,7 +184,11 @@ Vue.component('chat-component', function(resolve, reject) {
                             this.message[this.to_user_id]=[];
 
                         this.message[this.to_user_id].push(msg);
-                        this.current_message=this.message[this.to_user_id]
+                        this.current_message=this.message[this.to_user_id];
+
+                        var elem = this.$els.content;
+                        elem.scrollTop = elem.scrollHeight;
+
                     }else if(this.group_id){
 
                     }
@@ -139,6 +202,9 @@ Vue.component('chat-component', function(resolve, reject) {
                     this.to_user_id=event.path[1].id+'';
 
                     this.current_message=this.message[this.to_user_id]||[];
+                    
+                    var elem = this.$els.content;
+                    elem.scrollTop = elem.scrollHeight;
                 }
 			},
 
