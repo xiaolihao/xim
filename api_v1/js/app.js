@@ -138,7 +138,7 @@ Vue.component('chat-component', function(resolve, reject) {
                           }
                         }
                         socket.send(JSON.stringify(msg));
-
+                        console.log(JSON.stringify(msg));
                         if(!self.message[self.to_user_id])
                             self.message[self.to_user_id]=[];
 

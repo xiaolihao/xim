@@ -35,7 +35,9 @@
 					<p>
 						<span>{{ m.msg.from_user_id }}  {{ m.msg.timestamp }}</span>
 
-						<p>{{m.msg.message}}</p>
+						<p v-if="m.msg.message_type=='text'">{{m.msg.message}}</p>
+						<img src={{m.msg.message.url}} v-if="m.msg.message_type=='file'"/>
+
 					</p>
 				</li>
 			</ul>
@@ -44,7 +46,7 @@
             <textarea id="textarea" v-model="imessage"></textarea>
         </div>
         <form id="fform" action="/api/v1/upload" method="post" enctype="multipart/form-data" v-el:fform>
-     		<input type="file" size="60" id="file" name="file" v-el:file>
+     		<input type="file" size="60" id="file" name="file" accept="image/gif, image/jpeg, image/png" v-el:file>
  		</form>
 
         <button id="btn-send" v-on:click="send">发送</button>
