@@ -1,7 +1,7 @@
 
 // api
 exports.api = {
-  host: '127.0.0.1',  // server self ip
+  host: '192.168.1.113',  // server self ip
   port: 9018,
   name: 'xim api'
 };

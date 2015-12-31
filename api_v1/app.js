@@ -518,7 +518,7 @@ server.use(function(req, res, next){
 
 server.use(function (req, res, next) {
     if (req.url.match(/^\/api\/v1\/download\/.+/)) {
-        res.setHeader('Cache-Control', 'public, max-age=3600'))
+        res.setHeader('Cache-Control', 'public, max-age=3600');
     }
     next();
 });

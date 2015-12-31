@@ -66,11 +66,11 @@ Vue.component('login-component', function(resolve, reject) {
 
 			methods:{
 				login:function(){
-					this.$http.post('http://127.0.0.1:9018/api/v1/login', {email:this.username, password:this.password}).then(function(res){
+					this.$http.post('http://192.168.1.113:9018/api/v1/login', {email:this.username, password:this.password}).then(function(res){
 			      	Cookies.set('username', this.username);
 			  		Cookies.set('password', this.password);
 
-			  		socket=new SockJS('http://127.0.0.1:9019/xim/chat');
+			  		socket=new SockJS('http://192.168.1.113:9019/xim/chat');
 			  		init_socket(res.data);
 			        this.$parent.login=true;
 			      }, function(error) {
