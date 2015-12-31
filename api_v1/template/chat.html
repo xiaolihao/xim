@@ -6,7 +6,6 @@
 		  <li><a href="#group" role="tab" data-toggle="tab">Group</a></li>
 		</ul>
 
-		<!-- Tab panes -->
 		<div class="tab-content">
 		  <div class="tab-pane active" id="friend">
 		  	<ul>
@@ -19,9 +18,9 @@
 		  </div>
 		  <div class="tab-pane" id="group">
 		  	<ul>
-		  		<li v-for="group in groups">
+		  		<li v-for="group in groups" v-on:click="gclick" id="{{ group.GROUP_ID }}">
 		  			<a>
-						{{ group.NAME }}
+						{{ group.NAME}}[{{ group.GROUP_ID }}]
 					</a>
 				</li>
 			</ul>
@@ -32,16 +31,19 @@
 		<div id="content" v-el:content>
 			<ul>
 				<li v-for="m in current_message" class="{{m.msg.from_user_id==id}}">
-					<p>
+					
 						<span>{{ m.msg.from_user_id }}  {{ m.msg.timestamp }}</span>
 
-						<p v-if="m.msg.message_type=='text'">{{m.msg.message}}</p>
-						<img src={{m.msg.message.url}} v-if="m.msg.message_type=='file'"/>
-
-					</p>
+						<div v-if="m.msg.message_type=='text'">
+							<p>{{m.msg.message}}</p>
+						</div>
+						
+						<div v-if="m.msg.message_type=='file'">
+							<img src={{m.msg.message.url}}></img>
+						</div>
 				</li>
 			</ul>
-		</div>    
+		</div>
 		<div class="input-area">
             <textarea id="textarea" v-model="imessage"></textarea>
         </div>

@@ -227,7 +227,6 @@ function file_upload(req, res, next){
 		break;
 	} 	
 
-	console.log(req.files);
 	var _file = req.files[namestr];
 	var path = _file.path;
 	
@@ -516,6 +515,14 @@ server.use(function(req, res, next){
 	console.log('['+req.method+']'+req.url+','+JSON.stringify(req.params));
 	next()
 });
+
+server.use(function (req, res, next) {
+    if (req.url.match(/^\/api\/v1\/download\/.+/)) {
+        res.setHeader('Cache-Control', 'public, max-age=3600'))
+    }
+    next();
+});
+
 server.post('/api/v1/upload', file_upload);
 server.get('/api/v1/download/:id', file_download);
 

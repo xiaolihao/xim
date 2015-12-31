@@ -6,7 +6,7 @@ var vue = null;
 
 function init_socket(u){
     user=u;
-
+    console.log(u);
 	socket.onopen = function(){
         socket.send(JSON.stringify({
         	action:'init',
@@ -17,19 +17,29 @@ function init_socket(u){
 	socket.onmessage = function(e){
         var msg=JSON.parse(e.data);
 
+        console.log(msg);
         switch(msg.action){
             case 'message':
                 if(!vue.message[msg.msg.from_user_id])
                     vue.message[msg.msg.from_user_id]=[];
 
                 vue.message[msg.msg.from_user_id].push(msg);
-                var elem = vue.$els.content;
-                elem.scrollTop = elem.scrollHeight;
+                
             break;
+
+            case 'gmessage':
+                if(!vue.gmessage[msg.msg.group_id])
+                    vue.gmessage[msg.msg.group_id]=[];
+
+                vue.gmessage[msg.msg.group_id].push(msg);
+            break;
+
             case 'state-notify':
             break;
         }
         
+        var elem = vue.$els.content;
+        elem.scrollTop = elem.scrollHeight;
     };
 
     socket.onclose = function(){
@@ -97,7 +107,8 @@ Vue.component('chat-component', function(resolve, reject) {
                     to_user_id: null,
                     group_id: null,
                     message: {},
-                    current_message:[]
+                    current_message:[],
+                    gmessage: {}
 			    }
         	},
 			ready:function(){
@@ -116,35 +127,62 @@ Vue.component('chat-component', function(resolve, reject) {
                     },
                     complete: function(response) 
                     {
-                        if(!self.to_user_id){
+                        if(self.to_user_id){
+                            var _msg=JSON.parse(response.responseText);
+                            var msg={
+                              action:'message',
+                              msg:{
+                                to_user_id: self.to_user_id+'',
+                                from_user_id: self.id+'',
+                                message_type: 'file',
+                                message: {
+                                    file_type:_msg.file_type,
+                                    file_length: _msg.file_length,
+                                    file_name: _msg.file_name,
+                                    url:_msg.url
+                                },
+                                timestamp:_msg.timestamp
+                              }
+                            }
+                            socket.send(JSON.stringify(msg));
+                            if(!self.message[self.to_user_id])
+                                self.message[self.to_user_id]=[];
+
+                            self.message[self.to_user_id].push(msg);
+                            self.current_message=self.message[self.to_user_id];
+
+                            var elem = self.$els.content;
+                            elem.scrollTop = elem.scrollHeight;
+                        }
+                        else if(self.group_id){
+                            var _msg=JSON.parse(response.responseText);
+                            var msg={
+                              action:'gmessage',
+                              msg:{
+                                group_id: self.group_id+'',
+                                from_user_id: self.id+'',
+                                message_type: 'file',
+                                message: {
+                                    file_type:_msg.file_type,
+                                    file_length: _msg.file_length,
+                                    file_name: _msg.file_name,
+                                    url:_msg.url
+                                },
+                                timestamp:_msg.timestamp
+                              }
+                            }
+                            socket.send(JSON.stringify(msg));
+                            if(!self.gmessage[self.group_id])
+                                self.gmessage[self.group_id]=[];
+
+                            self.gmessage[self.group_id].push(msg);
+                            self.current_message=self.gmessage[self.group_id];
+
+                            var elem = self.$els.content;
+                            elem.scrollTop = elem.scrollHeight;
+                        }
+                        else
                             alert('先选择一个朋友或组!');
-                            return;
-                        }
-
-                        var _msg=JSON.parse(response.responseText);
-                        var msg={
-                          action:'message',
-                          msg:{
-                            to_user_id: self.to_user_id+'',
-                            from_user_id: self.id+'',
-                            message_type: 'file',
-                            message: {
-                                file_type:_msg.file_type,
-                                file_length: _msg.file_length,
-                                file_name: _msg.file_name,
-                                url:_msg.url
-                            },
-                            timestamp:_msg.timestamp
-                          }
-                        }
-                        socket.send(JSON.stringify(msg));
-                        console.log(JSON.stringify(msg));
-                        if(!self.message[self.to_user_id])
-                            self.message[self.to_user_id]=[];
-
-                        self.message[self.to_user_id].push(msg);
-                        self.current_message=self.message[self.to_user_id];
-
                     },
                     error: function(err)
                     {
@@ -190,6 +228,27 @@ Vue.component('chat-component', function(resolve, reject) {
                         elem.scrollTop = elem.scrollHeight;
 
                     }else if(this.group_id){
+                        var msg={
+                            action:'gmessage',
+                            msg:{
+                                    group_id: this.group_id+'',
+                                    from_user_id: this.id+'',
+                                    message_type: 'text',
+                                    message: this.imessage,
+                                    timestamp: new Date().toJSON().replace('T', ' ').substr(0, 19)
+                                }
+                            };
+
+                        socket.send(JSON.stringify(msg));
+                        this.imessage='';
+
+                        if(!this.gmessage[this.group_id])
+                            this.gmessage[this.group_id]=[];
+
+                        this.gmessage[this.group_id].push(msg);
+                        this.current_message=this.gmessage[this.group_id];
+                        var elem = this.$els.content;
+                        elem.scrollTop = elem.scrollHeight;
 
                     }
                     else{
@@ -205,7 +264,16 @@ Vue.component('chat-component', function(resolve, reject) {
                     
                     var elem = this.$els.content;
                     elem.scrollTop = elem.scrollHeight;
-                }
+                },
+
+                gclick:function(event){
+                    this.to_user_id=null;
+                    this.group_id=event.path[1].id+'';
+                    this.current_message=this.gmessage[this.group_id]||[];
+
+                    var elem = this.$els.content;
+                    elem.scrollTop = elem.scrollHeight;
+                }   
 			},
 
             template: doc

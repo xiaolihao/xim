@@ -36,8 +36,8 @@ body{background: #444 url(http://sandbox.runjs.cn/uploads/rs/418/nkls38xx/carbon
 
 
 .main-box{
-	width:600px;
-	height:420px;
+	width:800px;
+	height:600px;
 	padding:0 20px;
 	border:1px solid #fff; 
 	color:#000; 
@@ -51,8 +51,8 @@ body{background: #444 url(http://sandbox.runjs.cn/uploads/rs/418/nkls38xx/carbon
 	position: absolute;
 	left:50%;
 	top:50%;
-	margin-left:-210px;
-	margin-top:-150px;
+	margin-left:-350px;
+	margin-top:-250px;
 }
 
 .main-box .left{
@@ -79,11 +79,12 @@ textarea{
 
 }
 
+
 #content{
 	position: absolute;
-	top: 10px;
+	top: 5px;
 	left:32%;
-	height: 250px;
+	height: 430px;
 	right:10px;
 	overflow-y:auto;
 }
@@ -106,7 +107,7 @@ textarea{
 #fform{
 	position: absolute;
 	bottom: -15px;
-	left:210px;
+	left:280px;
 }
 
 .tab-content ul li a {
